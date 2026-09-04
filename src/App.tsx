@@ -39,6 +39,10 @@ interface AppProps {
   borderRadius?: string | number;
   toggleBtnRadius?: string | number;
   fontFamily?: string;
+  primaryColor?: string;
+  chatbotAvatar?: string | ReactNode;
+  welcomeMessage?: string;
+  botName?: string;
 }
 
 interface ChatbotDetails {
@@ -169,12 +173,22 @@ const App: React.FC<AppProps> = ({
   borderRadius,
   toggleBtnRadius,
   fontFamily,
+  primaryColor,
+  chatbotAvatar,
+  welcomeMessage,
+  botName,
 }) => {
   const [show, setShow] = useState(false);
   const [chatbotDetails, setChatbotDetails] = useState<ChatbotDetails | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const themeConfig = getThemeConfig(theme, borderRadius, toggleBtnRadius, fontFamily);
+  if (primaryColor) {
+    themeConfig.headerBg = primaryColor;
+    themeConfig.toggleBg = primaryColor;
+    themeConfig.buttonBg = primaryColor;
+    themeConfig.userBubbleBg = primaryColor;
+  }
 
   useEffect(() => {
     const fetchChatbotDetails = async () => {
@@ -230,6 +244,10 @@ const App: React.FC<AppProps> = ({
             borderRadius={borderRadius}
             toggleBtnRadius={toggleBtnRadius}
             fontFamily={fontFamily}
+            primaryColor={primaryColor}
+            chatbotAvatar={chatbotAvatar}
+            welcomeMessage={welcomeMessage}
+            botName={botName}
           />
         ) : errorMessage ? (
           <ErrorContainer $config={themeConfig}>
