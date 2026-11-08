@@ -4,7 +4,7 @@ import axios from "axios";
 import styled, { keyframes, css } from "styled-components";
 import { IoSend, IoMic, IoMicOff } from "react-icons/io5";
 import { TbUser, TbMessageCircleOff, TbMessageChatbot } from "react-icons/tb";
-import { RiRobot2Line, RiCustomerService2Line, RiShieldCheckLine, RiSecurePaymentLine, RiSparklingFill } from "react-icons/ri";
+import { RiRobot2Line, RiCustomerService2Line, RiShieldCheckLine, RiSecurePaymentLine, RiSparklingFill, RiCpuLine, RiMagicLine } from "react-icons/ri";
 import { FaStar, FaBolt, FaLock, FaBrain } from "react-icons/fa";
 import { AiOutlineClose } from "react-icons/ai";
 import generateSugesstions from "../utils/generateSuggestions";
@@ -378,15 +378,17 @@ const Chatbot: React.FC<ChatbotProps> = ({
 
   const headerTitle = botName || chatbotDetails?.bussinessName || "Aptus AI Assistant";
 
-  const renderAvatar = (size = 16) => {
+  const renderAvatar = (size = 16, color?: string) => {
     if (!chatbotAvatar || chatbotAvatar === "bot") {
-      return <RiRobot2Line size={size} />;
+      return <RiRobot2Line size={size} color={color} />;
     }
-    if (chatbotAvatar === "sparkles") return <RiSparklingFill size={size} />;
-    if (chatbotAvatar === "chat") return <TbMessageChatbot size={size} />;
-    if (chatbotAvatar === "agent") return <RiCustomerService2Line size={size} />;
-    if (chatbotAvatar === "zap") return <FaBolt size={size} />;
-    if (chatbotAvatar === "brain") return <FaBrain size={size} />;
+    if (chatbotAvatar === "sparkles") return <RiSparklingFill size={size} color={color} />;
+    if (chatbotAvatar === "chat") return <TbMessageChatbot size={size} color={color} />;
+    if (chatbotAvatar === "agent") return <RiCustomerService2Line size={size} color={color} />;
+    if (chatbotAvatar === "brain") return <FaBrain size={size} color={color} />;
+    if (chatbotAvatar === "cpu") return <RiCpuLine size={size} color={color} />;
+    if (chatbotAvatar === "zap") return <FaBolt size={size} color={color} />;
+    if (chatbotAvatar === "wand") return <RiMagicLine size={size} color={color} />;
     if (typeof chatbotAvatar === "string" && (chatbotAvatar.startsWith("http") || chatbotAvatar.startsWith("data:"))) {
       return (
         <img
@@ -396,10 +398,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
         />
       );
     }
-    if (typeof chatbotAvatar === "string") {
-      return <span style={{ fontSize: `${size}px`, lineHeight: 1 }}>{chatbotAvatar}</span>;
-    }
-    return chatbotAvatar;
+    return <RiRobot2Line size={size} color={color} />;
   };
 
   return (
@@ -407,8 +406,8 @@ const Chatbot: React.FC<ChatbotProps> = ({
       {/* Header */}
       <Header $config={themeConfig}>
         <HeaderLeft>
-          <AvatarCircle $bg="rgba(255, 255, 255, 0.2)" $color="inherit">
-            {renderAvatar(16)}
+          <AvatarCircle $bg="rgba(255, 255, 255, 0.2)" $color={themeConfig.headerColor}>
+            {renderAvatar(16, themeConfig.headerColor)}
           </AvatarCircle>
           <HeaderTitleText style={{ color: themeConfig.headerColor }}>
             <span style={{ color: themeConfig.headerColor, fontWeight: 800 }}>{headerTitle}</span>
@@ -447,7 +446,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
                 ) : message.sender === "human_agent" ? (
                   <RiCustomerService2Line size={16} />
                 ) : (
-                  renderAvatar()
+                  renderAvatar(16, themeConfig.botBubbleColor || "#1a1a1a")
                 )}
               </AvatarCircle>
               <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxWidth: "100%" }}>
@@ -521,7 +520,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
         {loading && (
           <BotMessageWrapper $config={themeConfig}>
             <AvatarCircle $bg="rgba(0, 0, 0, 0.08)" $color={themeConfig.botBubbleColor || "#1a1a1a"}>
-              {renderAvatar()}
+              {renderAvatar(16, themeConfig.botBubbleColor || "#1a1a1a")}
             </AvatarCircle>
             <MessageBubble $config={themeConfig} role="bot">
               Typing...

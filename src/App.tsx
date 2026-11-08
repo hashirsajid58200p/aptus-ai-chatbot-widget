@@ -1,7 +1,7 @@
 import React, { ReactNode, useEffect, useState } from 'react';
 import { AiOutlineClose, AiOutlineWarning } from 'react-icons/ai';
 import { TbMessageChatbot } from 'react-icons/tb';
-import { RiRobot2Line, RiSparklingFill, RiCustomerService2Line } from 'react-icons/ri';
+import { RiRobot2Line, RiSparklingFill, RiCustomerService2Line, RiCpuLine, RiMagicLine } from 'react-icons/ri';
 import { FaBolt, FaBrain } from 'react-icons/fa';
 import styled, { keyframes } from 'styled-components';
 import Chatbot from './components/chatbot';
@@ -85,8 +85,10 @@ export function renderAvatarIcon(avatar?: string | ReactNode, size = 28, color?:
   if (avatar === 'sparkles') return <RiSparklingFill size={size} color={color} />;
   if (avatar === 'chat') return <TbMessageChatbot size={size} color={color} />;
   if (avatar === 'agent') return <RiCustomerService2Line size={size} color={color} />;
-  if (avatar === 'zap') return <FaBolt size={size} color={color} />;
   if (avatar === 'brain') return <FaBrain size={size} color={color} />;
+  if (avatar === 'cpu') return <RiCpuLine size={size} color={color} />;
+  if (avatar === 'zap') return <FaBolt size={size} color={color} />;
+  if (avatar === 'wand') return <RiMagicLine size={size} color={color} />;
   if (typeof avatar === 'string' && (avatar.startsWith('http') || avatar.startsWith('data:'))) {
     return (
       <img
@@ -96,10 +98,7 @@ export function renderAvatarIcon(avatar?: string | ReactNode, size = 28, color?:
       />
     );
   }
-  if (typeof avatar === 'string') {
-    return <span style={{ fontSize: `${size}px`, lineHeight: 1 }}>{avatar}</span>;
-  }
-  return avatar;
+  return <RiRobot2Line size={size} color={color} />;
 }
 
 // Keyframe animations
