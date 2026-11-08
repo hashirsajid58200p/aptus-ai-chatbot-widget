@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef, ReactNode } from "react";
 import generateSession from "../utils/generateSession";
 import axios from "axios";
-import styled, { keyframes } from "styled-components";
+import styled, { keyframes, css } from "styled-components";
 import { IoSend, IoMic, IoMicOff } from "react-icons/io5";
-import { TbUser, TbMessageCircleOff } from "react-icons/tb";
+import { TbUser, TbMessageCircleOff, TbMessageChatbot } from "react-icons/tb";
 import { RiRobot2Line, RiCustomerService2Line, RiShieldCheckLine, RiSecurePaymentLine, RiSparklingFill } from "react-icons/ri";
-import { FaStar, FaBolt, FaLock } from "react-icons/fa";
+import { FaStar, FaBolt, FaLock, FaBrain } from "react-icons/fa";
+import { AiOutlineClose } from "react-icons/ai";
 import generateSugesstions from "../utils/generateSuggestions";
 import { getThemeConfig, ThemeConfig } from "../theme";
+import { getContrastColor } from "../App";
 
 interface Message {
   role: "user" | "bot";
@@ -45,9 +47,11 @@ interface ChatbotProps {
   toggleBtnRadius?: string | number;
   fontFamily?: string;
   primaryColor?: string;
+  textColor?: string;
   chatbotAvatar?: string | ReactNode;
   welcomeMessage?: string;
   botName?: string;
+  onClose?: () => void;
 }
 
 const Chatbot: React.FC<ChatbotProps> = ({
@@ -60,9 +64,11 @@ const Chatbot: React.FC<ChatbotProps> = ({
   toggleBtnRadius,
   fontFamily,
   primaryColor,
+  textColor,
   chatbotAvatar,
   welcomeMessage,
   botName,
+  onClose,
 }) => {
   const [session, setSession] = useState<SessionInterface>({
     started: false,
@@ -100,11 +106,16 @@ const Chatbot: React.FC<ChatbotProps> = ({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const themeConfig = getThemeConfig(theme, borderRadius, toggleBtnRadius, fontFamily);
-  if (primaryColor && primaryColor !== '#f97316') {
+  if (primaryColor && primaryColor !== 'default') {
     themeConfig.headerBg = primaryColor;
     themeConfig.toggleBg = primaryColor;
     themeConfig.buttonBg = primaryColor;
     themeConfig.userBubbleBg = primaryColor;
+  }
+  if (textColor) {
+    themeConfig.headerColor = textColor;
+  } else if (primaryColor && primaryColor !== 'default') {
+    themeConfig.headerColor = getContrastColor(primaryColor);
   }
 
   const scrollToBottom = () => {
@@ -367,14 +378,28 @@ const Chatbot: React.FC<ChatbotProps> = ({
 
   const headerTitle = botName || chatbotDetails?.bussinessName || "Aptus AI Assistant";
 
-  const renderAvatar = () => {
-    if (chatbotAvatar) {
-      if (typeof chatbotAvatar === "string") {
-        return <img src={chatbotAvatar} alt="Avatar" style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} />;
-      }
-      return chatbotAvatar;
+  const renderAvatar = (size = 16) => {
+    if (!chatbotAvatar || chatbotAvatar === "bot") {
+      return <RiRobot2Line size={size} />;
     }
-    return <RiRobot2Line size={20} />;
+    if (chatbotAvatar === "sparkles") return <RiSparklingFill size={size} />;
+    if (chatbotAvatar === "chat") return <TbMessageChatbot size={size} />;
+    if (chatbotAvatar === "agent") return <RiCustomerService2Line size={size} />;
+    if (chatbotAvatar === "zap") return <FaBolt size={size} />;
+    if (chatbotAvatar === "brain") return <FaBrain size={size} />;
+    if (typeof chatbotAvatar === "string" && (chatbotAvatar.startsWith("http") || chatbotAvatar.startsWith("data:"))) {
+      return (
+        <img
+          src={chatbotAvatar}
+          alt="Avatar"
+          style={{ width: `${size}px`, height: `${size}px`, borderRadius: "50%", objectFit: "cover" }}
+        />
+      );
+    }
+    if (typeof chatbotAvatar === "string") {
+      return <span style={{ fontSize: `${size}px`, lineHeight: 1 }}>{chatbotAvatar}</span>;
+    }
+    return chatbotAvatar;
   };
 
   return (
@@ -383,11 +408,11 @@ const Chatbot: React.FC<ChatbotProps> = ({
       <Header $config={themeConfig}>
         <HeaderLeft>
           <AvatarCircle $bg="rgba(255, 255, 255, 0.2)" $color="inherit">
-            {renderAvatar()}
+            {renderAvatar(16)}
           </AvatarCircle>
-          <HeaderTitleText>
-            <span>{headerTitle}</span>
-            <OnlineStatusBadge>● Online</OnlineStatusBadge>
+          <HeaderTitleText style={{ color: themeConfig.headerColor }}>
+            <span style={{ color: themeConfig.headerColor, fontWeight: 800 }}>{headerTitle}</span>
+            <OnlineStatusBadge style={{ color: themeConfig.headerColor, opacity: 0.85 }}>● Online</OnlineStatusBadge>
           </HeaderTitleText>
         </HeaderLeft>
 
@@ -395,9 +420,19 @@ const Chatbot: React.FC<ChatbotProps> = ({
           <HeaderIconButton
             title="Request Live Human Agent"
             onClick={handleRequestHuman}
+            style={{ color: themeConfig.headerColor, borderColor: "rgba(255,255,255,0.3)" }}
           >
             <RiCustomerService2Line size={18} />
           </HeaderIconButton>
+          {onClose && (
+            <HeaderIconButton
+              title="Close Chat"
+              onClick={onClose}
+              style={{ color: themeConfig.headerColor, borderColor: "rgba(255,255,255,0.3)" }}
+            >
+              <AiOutlineClose size={16} />
+            </HeaderIconButton>
+          )}
         </HeaderControls>
       </Header>
 
@@ -773,7 +808,11 @@ const VoiceButton = styled.button<{ $isListening: boolean }>`
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s;
-  ${({ $isListening }) => ($isListening ? `animation: ${pulse} 1.2s infinite;` : "")}
+  ${({ $isListening }) =>
+    $isListening &&
+    css`
+      animation: ${pulse} 1.2s infinite;
+    `}
 
   &:hover {
     background: ${({ $isListening }) => ($isListening ? "#fecaca" : "#e5e7eb")};

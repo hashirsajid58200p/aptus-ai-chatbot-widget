@@ -1,6 +1,8 @@
 import React, { ReactNode, useEffect, useState } from 'react';
 import { AiOutlineClose, AiOutlineWarning } from 'react-icons/ai';
 import { TbMessageChatbot } from 'react-icons/tb';
+import { RiRobot2Line, RiSparklingFill, RiCustomerService2Line } from 'react-icons/ri';
+import { FaBolt, FaBrain } from 'react-icons/fa';
 import styled, { keyframes } from 'styled-components';
 import Chatbot from './components/chatbot';
 import getChatbotDetails from './utils/getChatbotDetails';
@@ -40,6 +42,7 @@ export interface AppProps {
   toggleBtnRadius?: string | number;
   fontFamily?: string;
   primaryColor?: string;
+  textColor?: string;
   chatbotAvatar?: string | ReactNode;
   welcomeMessage?: string;
   botName?: string;
@@ -56,10 +59,47 @@ export interface ChatbotDetails {
   }[];
   theme?: string;
   primaryColor?: string;
+  textColor?: string;
+  borderRadius?: string;
   botName?: string;
   welcomeMessage?: string;
   chatbotAvatar?: string;
   allowedDomains?: string[];
+}
+
+export function getContrastColor(hexColor?: string): string {
+  if (!hexColor || hexColor.startsWith('rgba')) return '#FFFFFF';
+  const hex = hexColor.replace('#', '');
+  if (hex.length < 6) return '#FFFFFF';
+  const r = parseInt(hex.substring(0, 2), 16) || 0;
+  const g = parseInt(hex.substring(2, 4), 16) || 0;
+  const b = parseInt(hex.substring(4, 6), 16) || 0;
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 145 ? '#111827' : '#FFFFFF';
+}
+
+export function renderAvatarIcon(avatar?: string | ReactNode, size = 28, color?: string) {
+  if (!avatar || avatar === 'bot') {
+    return <RiRobot2Line size={size} color={color} />;
+  }
+  if (avatar === 'sparkles') return <RiSparklingFill size={size} color={color} />;
+  if (avatar === 'chat') return <TbMessageChatbot size={size} color={color} />;
+  if (avatar === 'agent') return <RiCustomerService2Line size={size} color={color} />;
+  if (avatar === 'zap') return <FaBolt size={size} color={color} />;
+  if (avatar === 'brain') return <FaBrain size={size} color={color} />;
+  if (typeof avatar === 'string' && (avatar.startsWith('http') || avatar.startsWith('data:'))) {
+    return (
+      <img
+        src={avatar}
+        alt="Avatar"
+        style={{ width: `${size}px`, height: `${size}px`, borderRadius: '50%', objectFit: 'cover' }}
+      />
+    );
+  }
+  if (typeof avatar === 'string') {
+    return <span style={{ fontSize: `${size}px`, lineHeight: 1 }}>{avatar}</span>;
+  }
+  return avatar;
 }
 
 // Keyframe animations
@@ -180,10 +220,11 @@ const App: React.FC<AppProps> = ({
   theme: propTheme,
   position = 'right',
   wantToShowSuggestions = false,
-  borderRadius,
+  borderRadius: propBorderRadius,
   toggleBtnRadius,
   fontFamily,
   primaryColor: propPrimaryColor,
+  textColor: propTextColor,
   chatbotAvatar: propChatbotAvatar,
   welcomeMessage: propWelcomeMessage,
   botName: propBotName,
@@ -207,21 +248,30 @@ const App: React.FC<AppProps> = ({
   // Effective appearance settings: prop overrides -> server details -> defaults
   const effectiveTheme = propTheme || chatbotDetails?.theme || 'aptus';
   const effectivePrimaryColor = propPrimaryColor || chatbotDetails?.primaryColor;
+  const effectiveTextColor = propTextColor || chatbotDetails?.textColor;
+  const effectiveBorderRadius = propBorderRadius || chatbotDetails?.borderRadius;
   const effectiveBotName = propBotName || chatbotDetails?.botName || chatbotDetails?.bussinessName || 'Aptus AI';
   const effectiveWelcomeMessage = propWelcomeMessage || chatbotDetails?.welcomeMessage;
-  const effectiveAvatar = propChatbotAvatar || chatbotDetails?.chatbotAvatar;
+  const effectiveAvatar = propChatbotAvatar || chatbotDetails?.chatbotAvatar || 'bot';
 
-  const themeConfig = getThemeConfig(effectiveTheme, borderRadius, toggleBtnRadius, fontFamily);
-  if (propPrimaryColor) {
-    themeConfig.headerBg = propPrimaryColor;
-    themeConfig.toggleBg = propPrimaryColor;
-    themeConfig.buttonBg = propPrimaryColor;
-    themeConfig.userBubbleBg = propPrimaryColor;
-  } else if (chatbotDetails?.primaryColor && chatbotDetails?.primaryColor !== '#f97316') {
-    themeConfig.headerBg = chatbotDetails.primaryColor;
-    themeConfig.toggleBg = chatbotDetails.primaryColor;
-    themeConfig.buttonBg = chatbotDetails.primaryColor;
-    themeConfig.userBubbleBg = chatbotDetails.primaryColor;
+  const themeConfig = getThemeConfig(effectiveTheme, effectiveBorderRadius, toggleBtnRadius, fontFamily);
+
+  // If primaryColor is customized
+  if (effectivePrimaryColor && effectivePrimaryColor !== 'default') {
+    themeConfig.headerBg = effectivePrimaryColor;
+    themeConfig.toggleBg = effectivePrimaryColor;
+    themeConfig.buttonBg = effectivePrimaryColor;
+    themeConfig.userBubbleBg = effectivePrimaryColor;
+  }
+
+  // Ensure toggle color always has crisp contrast against toggle background
+  themeConfig.toggleColor = getContrastColor(themeConfig.toggleBg);
+
+  // If textColor is customized
+  if (effectiveTextColor) {
+    themeConfig.headerColor = effectiveTextColor;
+  } else if (effectivePrimaryColor && effectivePrimaryColor !== 'default') {
+    themeConfig.headerColor = getContrastColor(effectivePrimaryColor);
   }
 
   useEffect(() => {
@@ -238,7 +288,6 @@ const App: React.FC<AppProps> = ({
         } else {
           setErrorMessage("Failed to load chatbot details");
         }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         console.error("Error fetching chatbot details:", error);
         setErrorMessage(error?.response?.data?.message || error?.message || "Invalid token or network error");
@@ -257,12 +306,18 @@ const App: React.FC<AppProps> = ({
         $config={themeConfig}
         $animate={!show && animate}
         style={{
-          backgroundColor: toggleBtnBgColor || undefined,
-          color: toggleBtncolor || undefined,
+          backgroundColor: toggleBtnBgColor || themeConfig.toggleBg,
+          color: toggleBtncolor || themeConfig.toggleColor,
         }}
         onClick={() => setShow(!show)}
       >
-        {show ? <AiOutlineClose size={32} /> : icon || <TbMessageChatbot size={32} />}
+        {show ? (
+          <AiOutlineClose size={28} color={toggleBtncolor || themeConfig.toggleColor} />
+        ) : icon ? (
+          icon
+        ) : (
+          renderAvatarIcon(effectiveAvatar, 28, toggleBtncolor || themeConfig.toggleColor)
+        )}
       </ChatbotToggleButton>
 
       <ChatbotWrapper $show={show} $position={position} $config={themeConfig}>
@@ -274,13 +329,15 @@ const App: React.FC<AppProps> = ({
             wantToShowSuggestions={wantToShowSuggestions}
             apiUrl={activeApiUrl}
             token={activeToken}
-            borderRadius={borderRadius}
+            borderRadius={effectiveBorderRadius}
             toggleBtnRadius={toggleBtnRadius}
             fontFamily={fontFamily}
             primaryColor={effectivePrimaryColor}
+            textColor={effectiveTextColor}
             chatbotAvatar={effectiveAvatar}
             welcomeMessage={effectiveWelcomeMessage}
             botName={effectiveBotName}
+            onClose={() => setShow(false)}
           />
         ) : errorMessage ? (
           <ErrorContainer $config={themeConfig}>
