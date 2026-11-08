@@ -379,7 +379,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
   const headerTitle = botName || chatbotDetails?.bussinessName || "Aptus AI Assistant";
 
   const renderAvatar = (size = 16, color?: string) => {
-    if (!chatbotAvatar || chatbotAvatar === "bot") {
+    if (!chatbotAvatar || chatbotAvatar === "bot" || chatbotAvatar === "default") {
       return <RiRobot2Line size={size} color={color} />;
     }
     if (chatbotAvatar === "sparkles") return <RiSparklingFill size={size} color={color} />;
@@ -389,7 +389,10 @@ const Chatbot: React.FC<ChatbotProps> = ({
     if (chatbotAvatar === "cpu") return <RiCpuLine size={size} color={color} />;
     if (chatbotAvatar === "zap") return <FaBolt size={size} color={color} />;
     if (chatbotAvatar === "wand") return <RiMagicLine size={size} color={color} />;
-    if (typeof chatbotAvatar === "string" && (chatbotAvatar.startsWith("http") || chatbotAvatar.startsWith("data:"))) {
+    if (
+      typeof chatbotAvatar === "string" &&
+      (chatbotAvatar.startsWith("http://") || chatbotAvatar.startsWith("https://") || chatbotAvatar.startsWith("data:image/"))
+    ) {
       return (
         <img
           src={chatbotAvatar}

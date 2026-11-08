@@ -79,7 +79,7 @@ export function getContrastColor(hexColor?: string): string {
 }
 
 export function renderAvatarIcon(avatar?: string | ReactNode, size = 28, color?: string) {
-  if (!avatar || avatar === 'bot') {
+  if (!avatar || avatar === 'bot' || avatar === 'default') {
     return <RiRobot2Line size={size} color={color} />;
   }
   if (avatar === 'sparkles') return <RiSparklingFill size={size} color={color} />;
@@ -89,7 +89,10 @@ export function renderAvatarIcon(avatar?: string | ReactNode, size = 28, color?:
   if (avatar === 'cpu') return <RiCpuLine size={size} color={color} />;
   if (avatar === 'zap') return <FaBolt size={size} color={color} />;
   if (avatar === 'wand') return <RiMagicLine size={size} color={color} />;
-  if (typeof avatar === 'string' && (avatar.startsWith('http') || avatar.startsWith('data:'))) {
+  if (
+    typeof avatar === 'string' &&
+    (avatar.startsWith('http://') || avatar.startsWith('https://') || avatar.startsWith('data:image/'))
+  ) {
     return (
       <img
         src={avatar}
