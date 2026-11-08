@@ -206,17 +206,22 @@ const App: React.FC<AppProps> = ({
 
   // Effective appearance settings: prop overrides -> server details -> defaults
   const effectiveTheme = propTheme || chatbotDetails?.theme || 'aptus';
-  const effectivePrimaryColor = propPrimaryColor || chatbotDetails?.primaryColor || '#f97316';
+  const effectivePrimaryColor = propPrimaryColor || chatbotDetails?.primaryColor;
   const effectiveBotName = propBotName || chatbotDetails?.botName || chatbotDetails?.bussinessName || 'Aptus AI';
   const effectiveWelcomeMessage = propWelcomeMessage || chatbotDetails?.welcomeMessage;
   const effectiveAvatar = propChatbotAvatar || chatbotDetails?.chatbotAvatar;
 
   const themeConfig = getThemeConfig(effectiveTheme, borderRadius, toggleBtnRadius, fontFamily);
-  if (effectivePrimaryColor) {
-    themeConfig.headerBg = effectivePrimaryColor;
-    themeConfig.toggleBg = effectivePrimaryColor;
-    themeConfig.buttonBg = effectivePrimaryColor;
-    themeConfig.userBubbleBg = effectivePrimaryColor;
+  if (propPrimaryColor) {
+    themeConfig.headerBg = propPrimaryColor;
+    themeConfig.toggleBg = propPrimaryColor;
+    themeConfig.buttonBg = propPrimaryColor;
+    themeConfig.userBubbleBg = propPrimaryColor;
+  } else if (chatbotDetails?.primaryColor && chatbotDetails?.primaryColor !== '#f97316') {
+    themeConfig.headerBg = chatbotDetails.primaryColor;
+    themeConfig.toggleBg = chatbotDetails.primaryColor;
+    themeConfig.buttonBg = chatbotDetails.primaryColor;
+    themeConfig.userBubbleBg = chatbotDetails.primaryColor;
   }
 
   useEffect(() => {

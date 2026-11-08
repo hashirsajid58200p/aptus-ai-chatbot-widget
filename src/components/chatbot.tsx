@@ -100,7 +100,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const themeConfig = getThemeConfig(theme, borderRadius, toggleBtnRadius, fontFamily);
-  if (primaryColor) {
+  if (primaryColor && primaryColor !== '#f97316') {
     themeConfig.headerBg = primaryColor;
     themeConfig.toggleBg = primaryColor;
     themeConfig.buttonBg = primaryColor;
@@ -154,23 +154,42 @@ const Chatbot: React.FC<ChatbotProps> = ({
       }
       setIsRecording(false);
     } else {
-      // Start recording
+      // Start recording with optimized audio constraints for crystal clear voice capture
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const mediaRecorder = new MediaRecorder(stream);
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            channelCount: 1,
+            sampleRate: 16000,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+
+        let mimeType = "audio/webm";
+        if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
+          mimeType = "audio/webm;codecs=opus";
+        } else if (MediaRecorder.isTypeSupported("audio/mp4")) {
+          mimeType = "audio/mp4";
+        }
+
+        const mediaRecorder = new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 128000 });
         mediaRecorderRef.current = mediaRecorder;
         audioChunksRef.current = [];
 
         mediaRecorder.ondataavailable = (event) => {
-          if (event.data.size > 0) {
+          if (event.data && event.data.size > 0) {
             audioChunksRef.current.push(event.data);
           }
         };
 
         mediaRecorder.onstop = async () => {
           stream.getTracks().forEach((track) => track.stop());
-          const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType || "audio/webm" });
-          if (audioBlob.size < 100) return;
+          const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+          if (audioBlob.size < 200) {
+            setIsRecording(false);
+            return;
+          }
 
           setIsTranscribing(true);
           try {
@@ -180,7 +199,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
               const base64Audio = reader.result as string;
               const res = await axios.post(`${apiUrl}/chatbot/transcribe`, {
                 audio: base64Audio,
-                mimeType: audioBlob.type,
+                mimeType: mimeType,
               });
 
               if (res.data?.success && res.data.text) {
@@ -195,7 +214,8 @@ const Chatbot: React.FC<ChatbotProps> = ({
           }
         };
 
-        mediaRecorder.start();
+        // Collect audio in 250ms chunks to ensure complete speech capture
+        mediaRecorder.start(250);
         setIsRecording(true);
       } catch (err) {
         console.error("Microphone access denied:", err);
