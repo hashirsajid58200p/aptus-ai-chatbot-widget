@@ -26,13 +26,13 @@ export type WidgetThemeName =
   | 'tech'
   | string;
 
-interface AppProps {
+export interface AppProps {
   icon?: ReactNode;
   toggleBtnBgColor?: string;
   toggleBtncolor?: string;
   animate?: boolean;
-  token: string;
-  apiUrl: string;
+  token?: string;
+  apiUrl?: string;
   theme?: WidgetThemeName;
   position?: 'left' | 'right';
   wantToShowSuggestions?: boolean;
@@ -45,7 +45,7 @@ interface AppProps {
   botName?: string;
 }
 
-interface ChatbotDetails {
+export interface ChatbotDetails {
   id: string;
   bussinessName: string;
   bussinessCategory: string;
@@ -54,6 +54,12 @@ interface ChatbotDetails {
     question: string;
     answer: string;
   }[];
+  theme?: string;
+  primaryColor?: string;
+  botName?: string;
+  welcomeMessage?: string;
+  chatbotAvatar?: string;
+  allowedDomains?: string[];
 }
 
 // Keyframe animations
@@ -98,103 +104,130 @@ const ChatbotToggleButton = styled.div<{ $position: string; $config: ThemeConfig
   color: ${({ $config }) => $config.toggleColor};
   transition: transform 0.15s ease-in-out, background-color 0.2s, color 0.2s, box-shadow 0.15s;
   animation: ${(props) => (props.$animate ? bounce : 'none')} 1.2s infinite;
-  z-index: 99999;
-  
+  z-index: 999999;
+
   &:hover {
-    transform: scale(1.05) translateY(-2px);
-  }
-  &:active {
-    transform: scale(0.95);
+    transform: scale(1.08);
   }
 `;
 
-// Chatbot Outer Wrapper
+// Chatbot Wrapper
 const ChatbotWrapper = styled.div<{ $show: boolean; $position: string; $config: ThemeConfig }>`
   position: fixed;
+  bottom: 90px;
   ${({ $position }) => ($position === 'left' ? 'left: 20px;' : 'right: 20px;')}
-  bottom: 96px;
-  width: 360px;
-  height: 520px;
+  width: 400px;
+  height: 600px;
   max-width: calc(100vw - 32px);
-  max-height: calc(100vh - 110px);
-  background-color: ${({ $config }) => $config.containerBg};
+  max-height: calc(100vh - 120px);
+  box-sizing: border-box;
   border-radius: ${({ $config }) => $config.wrapperRadius};
-  border: ${({ $config }) => $config.wrapperBorder || 'none'};
-  box-shadow: ${({ $config }) => $config.wrapperShadow || '0 12px 30px rgba(0, 0, 0, 0.2)'};
-  transition: opacity 0.25s ease-out, transform 0.25s ease-out;
-  ${({ $show }) => ($show ? 'opacity: 1; transform: translateY(-5px); pointer-events: auto;' : 'opacity: 0; transform: translateY(15px); pointer-events: none;')}
-  z-index: 99998;
+  border: ${({ $config }) => $config.wrapperBorder};
+  box-shadow: ${({ $config }) => $config.wrapperShadow};
   overflow: hidden;
+  z-index: 999999;
+  display: ${({ $show }) => ($show ? 'flex' : 'none')};
+  flex-direction: column;
+  background-color: ${({ $config }) => $config.containerBg};
 
-  @media (max-width: 768px) {
-    width: 340px;
-    height: 500px;
-    max-width: calc(100vw - 32px);
-    max-height: calc(100vh - 100px);
-    bottom: 90px;
+  @media (max-width: 480px) {
+    bottom: 0;
+    right: 0;
+    left: 0;
+    width: 100vw;
+    height: 100dvh;
+    max-width: 100vw;
+    max-height: 100dvh;
+    border-radius: 0;
+    border: none;
   }
 `;
 
-// Loader Component
+// Loader
 const Loader = styled.div<{ $config: ThemeConfig }>`
-  border: 4px solid ${({ $config }) => $config.inputBorder || '#e0e0e0'};
-  border-top: 4px solid ${({ $config }) => $config.headerBg};
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-left-color: ${({ $config }) => $config.headerBg};
   border-radius: 50%;
-  width: 45px;
-  height: 45px;
-  animation: ${spin} 0.9s linear infinite;
-  margin: 200px auto;
+  width: 40px;
+  height: 40px;
+  animation: ${spin} 1s linear infinite;
+  margin: auto;
 `;
 
+// Error Container
 const ErrorContainer = styled.div<{ $config: ThemeConfig }>`
+  padding: 24px 16px;
+  text-align: center;
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: 600;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100%;
-  padding: 24px;
-  text-align: center;
-  color: #d32f2f;
-  font-weight: 600;
-  font-size: 0.9em;
-  line-height: 1.5;
+  gap: 8px;
+  background-color: ${({ $config }) => $config.containerBg};
 `;
 
 const App: React.FC<AppProps> = ({
   icon,
-  toggleBtnBgColor = '',
-  toggleBtncolor = '',
+  toggleBtnBgColor,
+  toggleBtncolor,
   animate = true,
-  token,
-  apiUrl,
-  theme = 'aptus',
+  token: propToken,
+  apiUrl: propApiUrl,
+  theme: propTheme,
   position = 'right',
   wantToShowSuggestions = false,
   borderRadius,
   toggleBtnRadius,
   fontFamily,
-  primaryColor,
-  chatbotAvatar,
-  welcomeMessage,
-  botName,
+  primaryColor: propPrimaryColor,
+  chatbotAvatar: propChatbotAvatar,
+  welcomeMessage: propWelcomeMessage,
+  botName: propBotName,
 }) => {
   const [show, setShow] = useState(false);
   const [chatbotDetails, setChatbotDetails] = useState<ChatbotDetails | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const themeConfig = getThemeConfig(theme, borderRadius, toggleBtnRadius, fontFamily);
-  if (primaryColor) {
-    themeConfig.headerBg = primaryColor;
-    themeConfig.toggleBg = primaryColor;
-    themeConfig.buttonBg = primaryColor;
-    themeConfig.userBubbleBg = primaryColor;
+  // Auto-read token from props, or environment variable, or window global
+  const activeToken =
+    propToken ||
+    (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_APTUS_TOKEN) ||
+    (typeof window !== 'undefined' && (window as any).APTUS_CHATBOT_TOKEN) ||
+    '';
+
+  const activeApiUrl =
+    propApiUrl ||
+    (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_APTUS_API_URL) ||
+    'http://localhost:3100/api/v1';
+
+  // Effective appearance settings: prop overrides -> server details -> defaults
+  const effectiveTheme = propTheme || chatbotDetails?.theme || 'aptus';
+  const effectivePrimaryColor = propPrimaryColor || chatbotDetails?.primaryColor || '#f97316';
+  const effectiveBotName = propBotName || chatbotDetails?.botName || chatbotDetails?.bussinessName || 'Aptus AI';
+  const effectiveWelcomeMessage = propWelcomeMessage || chatbotDetails?.welcomeMessage;
+  const effectiveAvatar = propChatbotAvatar || chatbotDetails?.chatbotAvatar;
+
+  const themeConfig = getThemeConfig(effectiveTheme, borderRadius, toggleBtnRadius, fontFamily);
+  if (effectivePrimaryColor) {
+    themeConfig.headerBg = effectivePrimaryColor;
+    themeConfig.toggleBg = effectivePrimaryColor;
+    themeConfig.buttonBg = effectivePrimaryColor;
+    themeConfig.userBubbleBg = effectivePrimaryColor;
   }
 
   useEffect(() => {
     const fetchChatbotDetails = async () => {
       try {
         setErrorMessage(null);
-        const details = await getChatbotDetails(token, apiUrl);
+        if (!activeToken) {
+          setErrorMessage("Chatbot token not provided. Please set NEXT_PUBLIC_APTUS_TOKEN or pass token prop.");
+          return;
+        }
+        const details = await getChatbotDetails(activeToken, activeApiUrl);
         if (details) {
           setChatbotDetails(details);
         } else {
@@ -207,15 +240,10 @@ const App: React.FC<AppProps> = ({
       }
     };
 
-    if (apiUrl && token) {
+    if (activeApiUrl && activeToken) {
       fetchChatbotDetails();
     }
-  }, [token, apiUrl]);
-
-  if (!token) {
-    console.error('Valid Token is required for Aptus Chatbot');
-    throw new Error('Valid Token is required for Aptus Chatbot');
-  }
+  }, [activeToken, activeApiUrl]);
 
   return (
     <AppContainer $fontFamily={themeConfig.fontFamily}>
@@ -236,18 +264,18 @@ const App: React.FC<AppProps> = ({
         {chatbotDetails ? (
           <Chatbot
             chatbotDetails={chatbotDetails}
-            theme={theme}
+            theme={effectiveTheme}
             position={position}
             wantToShowSuggestions={wantToShowSuggestions}
-            apiUrl={apiUrl}
-            token={token}
+            apiUrl={activeApiUrl}
+            token={activeToken}
             borderRadius={borderRadius}
             toggleBtnRadius={toggleBtnRadius}
             fontFamily={fontFamily}
-            primaryColor={primaryColor}
-            chatbotAvatar={chatbotAvatar}
-            welcomeMessage={welcomeMessage}
-            botName={botName}
+            primaryColor={effectivePrimaryColor}
+            chatbotAvatar={effectiveAvatar}
+            welcomeMessage={effectiveWelcomeMessage}
+            botName={effectiveBotName}
           />
         ) : errorMessage ? (
           <ErrorContainer $config={themeConfig}>
