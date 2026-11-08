@@ -93,11 +93,13 @@ const Chatbot: React.FC<ChatbotProps> = ({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Voice States (Groq Whisper)
+  // Voice States (Real-time live streaming STT + Groq Whisper fallback)
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const recognitionRef = useRef<any>(null);
+  const hasLiveTranscribedRef = useRef(false);
 
   // Live Agent States
   const [isHumanActive, setIsHumanActive] = useState(false);
@@ -156,16 +158,65 @@ const Chatbot: React.FC<ChatbotProps> = ({
     initAutoSession();
   }, [token, apiUrl, session.started]);
 
-  // Voice Input via Groq Whisper (State-of-the-art multi-language accuracy)
+  // Voice Input: Real-time speech recognition (simultaneous live transcription) + Whisper fallback
   const toggleRecording = async () => {
     if (isRecording) {
-      // Stop recording
+      // Stop real-time speech recognition
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {}
+      }
+
+      // Stop media recorder
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
         mediaRecorderRef.current.stop();
       }
       setIsRecording(false);
     } else {
-      // Start recording with optimized audio constraints for crystal clear voice capture
+      hasLiveTranscribedRef.current = false;
+
+      // 1. Start Real-time live SpeechRecognition if supported by browser (captures words as you speak)
+      const SpeechRecClass =
+        typeof window !== "undefined" &&
+        ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+
+      if (SpeechRecClass) {
+        try {
+          const recognition = new SpeechRecClass();
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.lang = typeof navigator !== "undefined" && navigator.language ? navigator.language : "en-US";
+
+          const initialInput = input.trim();
+
+          recognition.onresult = (event: any) => {
+            let liveTranscript = "";
+            for (let i = 0; i < event.results.length; i++) {
+              liveTranscript += event.results[i][0].transcript;
+            }
+            if (liveTranscript.trim()) {
+              hasLiveTranscribedRef.current = true;
+              setInput(initialInput ? `${initialInput} ${liveTranscript.trim()}` : liveTranscript.trim());
+            }
+          };
+
+          recognition.onerror = (e: any) => {
+            console.warn("Live speech recognition notice:", e?.error);
+          };
+
+          recognition.onend = () => {
+            recognitionRef.current = null;
+          };
+
+          recognition.start();
+          recognitionRef.current = recognition;
+        } catch (recErr) {
+          console.warn("Real-time speech recognition could not start:", recErr);
+        }
+      }
+
+      // 2. Concurrently start MediaRecorder for Groq Whisper fallback
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: {
@@ -196,9 +247,18 @@ const Chatbot: React.FC<ChatbotProps> = ({
 
         mediaRecorder.onstop = async () => {
           stream.getTracks().forEach((track) => track.stop());
-          const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-          if (audioBlob.size < 200) {
+
+          // If live speech recognition already transcribed the words simultaneously in real time, skip server call
+          if (hasLiveTranscribedRef.current) {
+            setIsTranscribing(false);
             setIsRecording(false);
+            return;
+          }
+
+          const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+          if (audioBlob.size < 500) {
+            setIsRecording(false);
+            setIsTranscribing(false);
             return;
           }
 
@@ -207,30 +267,40 @@ const Chatbot: React.FC<ChatbotProps> = ({
             const reader = new FileReader();
             reader.readAsDataURL(audioBlob);
             reader.onloadend = async () => {
-              const base64Audio = reader.result as string;
-              const res = await axios.post(`${apiUrl}/chatbot/transcribe`, {
-                audio: base64Audio,
-                mimeType: mimeType,
-              });
+              try {
+                const base64Audio = reader.result as string;
+                const res = await axios.post(`${apiUrl}/chatbot/transcribe`, {
+                  audio: base64Audio,
+                  mimeType: mimeType,
+                  token: token,
+                });
 
-              if (res.data?.success && res.data.text) {
-                const text = res.data.text.trim();
-                setInput((prev) => (prev ? `${prev} ${text}` : text));
+                if (res.data?.success && res.data.text) {
+                  const text = res.data.text.trim();
+                  setInput((prev) => (prev ? `${prev} ${text}` : text));
+                }
+              } catch (err: any) {
+                console.warn("Groq Whisper transcription notice:", err?.response?.data?.message || err.message);
+              } finally {
+                setIsTranscribing(false);
               }
-              setIsTranscribing(false);
             };
           } catch (err: any) {
-            console.error("Transcription error:", err);
+            console.error("Audio processing notice:", err);
             setIsTranscribing(false);
           }
         };
 
-        // Collect audio in 250ms chunks to ensure complete speech capture
+        // Collect audio chunks
         mediaRecorder.start(250);
         setIsRecording(true);
       } catch (err) {
-        console.error("Microphone access denied:", err);
-        alert("Please allow microphone access to use voice typing.");
+        console.error("Microphone access notice:", err);
+        if (recognitionRef.current) {
+          setIsRecording(true);
+        } else {
+          alert("Please allow microphone access to use voice typing.");
+        }
       }
     }
   };
