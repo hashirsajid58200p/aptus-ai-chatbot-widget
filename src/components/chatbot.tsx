@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, ReactNode } from "react";
 import generateSession from "../utils/generateSession";
 import axios from "axios";
-import styled, { keyframes, css } from "styled-components";
+import styled from "styled-components";
 import { IoSend, IoMic, IoMicOff } from "react-icons/io5";
 import { TbUser, TbMessageCircleOff, TbMessageChatbot } from "react-icons/tb";
 import { RiRobot2Line, RiCustomerService2Line, RiShieldCheckLine, RiSecurePaymentLine, RiSparklingFill, RiCpuLine, RiMagicLine } from "react-icons/ri";
@@ -564,24 +564,24 @@ export default Chatbot;
 
 // --- Styled Components ---
 
-const slideUp = keyframes`
-  from {
-    transform: translateY(10px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-`;
-
-const pulse = keyframes`
-  0% { transform: scale(1); }
-  50% { transform: scale(1.15); }
-  100% { transform: scale(1); }
-`;
-
 const ChatbotContainer = styled.div<{ $config: ThemeConfig }>`
+  @keyframes aptusSlideUp {
+    from {
+      transform: translateY(10px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes aptusPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.12); box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
+    100% { transform: scale(1); }
+  }
+
   width: 100%;
   height: 100%;
   background-color: ${({ $config }) => $config.containerBg};
@@ -670,7 +670,7 @@ const MessageWrapper = styled.div`
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  animation: ${slideUp} 0.2s ease-out;
+  animation: aptusSlideUp 0.2s ease-out;
 `;
 
 const BotMessageWrapper = styled(MessageWrapper)<{ $config: ThemeConfig }>`
@@ -732,7 +732,7 @@ const PromoCard = styled.div<{ $config: ThemeConfig }>`
   border-radius: 8px;
   padding: 10px 12px;
   margin-top: 4px;
-  animation: ${slideUp} 0.3s ease-out;
+  animation: aptusSlideUp 0.3s ease-out;
 `;
 
 const PromoTitle = styled.div`
@@ -807,11 +807,7 @@ const VoiceButton = styled.button<{ $isListening: boolean }>`
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s;
-  ${({ $isListening }) =>
-    $isListening &&
-    css`
-      animation: ${pulse} 1.2s infinite;
-    `}
+  animation: ${({ $isListening }) => ($isListening ? "aptusPulse 1.2s infinite ease-in-out" : "none")};
 
   &:hover {
     background: ${({ $isListening }) => ($isListening ? "#fecaca" : "#e5e7eb")};

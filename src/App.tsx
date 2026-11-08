@@ -3,7 +3,7 @@ import { AiOutlineClose, AiOutlineWarning } from 'react-icons/ai';
 import { TbMessageChatbot } from 'react-icons/tb';
 import { RiRobot2Line, RiSparklingFill, RiCustomerService2Line, RiCpuLine, RiMagicLine } from 'react-icons/ri';
 import { FaBolt, FaBrain } from 'react-icons/fa';
-import styled, { keyframes } from 'styled-components';
+import styled from 'styled-components';
 import Chatbot from './components/chatbot';
 import getChatbotDetails from './utils/getChatbotDetails';
 import { getThemeConfig, ThemeConfig } from './theme';
@@ -101,24 +101,6 @@ export function renderAvatarIcon(avatar?: string | ReactNode, size = 28, color?:
   return <RiRobot2Line size={size} color={color} />;
 }
 
-// Keyframe animations
-const bounce = keyframes`
-  0%, 20%, 50%, 80%, 100% {
-    transform: translateY(0);
-  }
-  40% {
-    transform: translateY(-8px);
-  }
-  60% {
-    transform: translateY(-4px);
-  }
-`;
-
-const spin = keyframes`
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-`;
-
 // App container
 const AppContainer = styled.div<{ $fontFamily: string }>`
   font-family: ${({ $fontFamily }) => $fontFamily};
@@ -126,6 +108,18 @@ const AppContainer = styled.div<{ $fontFamily: string }>`
 
 // Chatbot Toggle Button
 const ChatbotToggleButton = styled.div<{ $position: string; $config: ThemeConfig; $animate: boolean }>`
+  @keyframes aptusBounce {
+    0%, 20%, 50%, 80%, 100% {
+      transform: translateY(0);
+    }
+    40% {
+      transform: translateY(-8px);
+    }
+    60% {
+      transform: translateY(-4px);
+    }
+  }
+
   position: fixed;
   bottom: 20px;
   ${({ $position }) => ($position === 'left' ? 'left: 20px;' : 'right: 20px;')}
@@ -142,7 +136,7 @@ const ChatbotToggleButton = styled.div<{ $position: string; $config: ThemeConfig
   background-color: ${({ $config }) => $config.toggleBg};
   color: ${({ $config }) => $config.toggleColor};
   transition: transform 0.15s ease-in-out, background-color 0.2s, color 0.2s, box-shadow 0.15s;
-  animation: ${(props) => (props.$animate ? bounce : 'none')} 1.2s infinite;
+  animation: ${(props) => (props.$animate ? 'aptusBounce 1.2s infinite ease-in-out' : 'none')};
   z-index: 999999;
 
   &:hover {
@@ -184,12 +178,17 @@ const ChatbotWrapper = styled.div<{ $show: boolean; $position: string; $config: 
 
 // Loader
 const Loader = styled.div<{ $config: ThemeConfig }>`
+  @keyframes aptusSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
   border: 4px solid rgba(0, 0, 0, 0.1);
   border-left-color: ${({ $config }) => $config.headerBg};
   border-radius: 50%;
   width: 40px;
   height: 40px;
-  animation: ${spin} 1s linear infinite;
+  animation: aptusSpin 1s linear infinite;
   margin: auto;
 `;
 
