@@ -119,10 +119,12 @@ const Chatbot: React.FC<ChatbotProps> = ({
     }
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       try {
+        if (mediaRecorderRef.current.state === "recording") {
+          mediaRecorderRef.current.requestData();
+        }
         mediaRecorderRef.current.stop();
       } catch (e) {}
-    }
-    if (mediaStreamRef.current) {
+    } else if (mediaStreamRef.current) {
       try {
         mediaStreamRef.current.getTracks().forEach((track) => {
           track.stop();
@@ -292,7 +294,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
           }
 
           const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-          if (audioBlob.size < 600) {
+          if (audioBlob.size < 300) {
             setIsRecording(false);
             setIsTranscribing(false);
             return;
@@ -311,7 +313,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
                     audio: base64Audio,
                     mimeType: mimeType,
                     token: token,
-                    prompt: "A natural conversation with a customer service assistant in English, Urdu (اردو), or Roman Urdu.",
+                    prompt: "Natural conversation with assistant in English, Urdu (اردو), or Roman Urdu (e.g. 'pricing kya hai', 'details batao').",
                   },
                   {
                     headers: {
@@ -325,7 +327,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
                 if (res.data?.success && res.data.text) {
                   const transcribedText = res.data.text.trim();
                   if (transcribedText) {
-                    setInput((prev) => (prev && hasLiveTranscribedRef.current ? transcribedText : prev ? `${prev} ${transcribedText}` : transcribedText));
+                    setInput(transcribedText);
                   }
                 }
               } catch (err: any) {
@@ -524,6 +526,9 @@ const Chatbot: React.FC<ChatbotProps> = ({
         <img
           src={chatbotAvatar}
           alt="Avatar"
+          onError={(e) => {
+            (e.currentTarget as HTMLElement).style.display = "none";
+          }}
           style={{ width: `${size}px`, height: `${size}px`, borderRadius: "50%", objectFit: "cover" }}
         />
       );

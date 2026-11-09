@@ -1,6 +1,6 @@
 {
   "name": "aptus-ai-chatbot-widget",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "A customizable, themeable, secure React AI Chatbot widget component for business websites.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -11,7 +11,8 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",

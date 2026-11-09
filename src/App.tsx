@@ -102,6 +102,9 @@ export function renderAvatarIcon(avatar?: string | ReactNode, size = 28, color?:
       <img
         src={avatar}
         alt="Avatar"
+        onError={(e) => {
+          (e.currentTarget as HTMLElement).style.display = 'none';
+        }}
         style={{ width: `${size}px`, height: `${size}px`, borderRadius: '50%', objectFit: 'cover' }}
       />
     );
