@@ -31,6 +31,8 @@ export interface ThemeConfig {
   botBubbleColor: string;
   botBubbleBorder?: string;
   bubbleRadius: string;
+  userBubbleRadius?: string;
+  botBubbleRadius?: string;
   inputContainerBg: string;
   inputContainerBorderTop: string;
   suggestionBg: string;
@@ -605,13 +607,17 @@ export function getThemeConfig(
     ? typeof customToggleRadius === 'number' ? `${customToggleRadius}px` : customToggleRadius
     : undefined;
 
+  const resolvedBubbleRadius = formattedRadius ?? baseConfig.bubbleRadius;
+
   return {
     ...baseConfig,
     fontFamily: finalFontFamily,
     wrapperRadius: formattedRadius ?? baseConfig.wrapperRadius,
     inputRadius: formattedRadius ?? baseConfig.inputRadius,
     buttonRadius: formattedRadius ?? baseConfig.buttonRadius,
-    bubbleRadius: formattedRadius ?? baseConfig.bubbleRadius,
+    bubbleRadius: resolvedBubbleRadius,
+    userBubbleRadius: resolvedBubbleRadius,
+    botBubbleRadius: resolvedBubbleRadius,
     toggleRadius: formattedToggleRadius ?? (formattedRadius ?? baseConfig.toggleRadius ?? baseConfig.wrapperRadius),
   };
 }

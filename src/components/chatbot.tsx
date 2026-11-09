@@ -61,6 +61,184 @@ interface ChatbotProps {
   onClose?: () => void;
 }
 
+// Safe, dependency-free Markdown parser for formatted chat replies
+const FormattedMessage: React.FC<{ content: string; color?: string }> = ({ content, color }) => {
+  if (!content) return null;
+
+  const parseInline = (text: string): React.ReactNode[] => {
+    const tokenRegex = /(\*\*([^*]+)\*\*|__([^_]+)__|`([^`]+)`|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|\*([^*]+)\*|_([^_]+)_)/g;
+    const elements: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = tokenRegex.exec(text)) !== null) {
+      if (match.index > lastIndex) {
+        elements.push(text.slice(lastIndex, match.index));
+      }
+
+      if (match[2] || match[3]) {
+        elements.push(
+          <strong key={match.index} style={{ fontWeight: 700, color: "inherit" }}>
+            {match[2] || match[3]}
+          </strong>
+        );
+      } else if (match[4]) {
+        elements.push(
+          <code
+            key={match.index}
+            style={{
+              backgroundColor: "rgba(0, 0, 0, 0.08)",
+              padding: "1px 5px",
+              borderRadius: "3px",
+              fontFamily: "monospace",
+              fontSize: "0.9em",
+            }}
+          >
+            {match[4]}
+          </code>
+        );
+      } else if (match[5] && match[6]) {
+        elements.push(
+          <a
+            key={match.index}
+            href={match[6]}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ textDecoration: "underline", color: "inherit", fontWeight: 600 }}
+          >
+            {match[5]}
+          </a>
+        );
+      } else if (match[7] || match[8]) {
+        elements.push(
+          <em key={match.index} style={{ fontStyle: "italic" }}>
+            {match[7] || match[8]}
+          </em>
+        );
+      }
+
+      lastIndex = tokenRegex.lastIndex;
+    }
+
+    if (lastIndex < text.length) {
+      elements.push(text.slice(lastIndex));
+    }
+
+    return elements;
+  };
+
+  const lines = content.split("\n");
+  const blocks: React.ReactNode[] = [];
+  let currentList: { type: "ul" | "ol"; items: React.ReactNode[] } | null = null;
+
+  const flushList = () => {
+    if (currentList) {
+      if (currentList.type === "ul") {
+        blocks.push(
+          <ul
+            key={`list-${blocks.length}`}
+            style={{
+              paddingLeft: "18px",
+              margin: "4px 0 6px 0",
+              listStyleType: "disc",
+            }}
+          >
+            {currentList.items.map((item, idx) => (
+              <li key={idx} style={{ marginBottom: "3px", lineHeight: 1.5 }}>
+                {item}
+              </li>
+            ))}
+          </ul>
+        );
+      } else {
+        blocks.push(
+          <ol
+            key={`list-${blocks.length}`}
+            style={{
+              paddingLeft: "18px",
+              margin: "4px 0 6px 0",
+              listStyleType: "decimal",
+            }}
+          >
+            {currentList.items.map((item, idx) => (
+              <li key={idx} style={{ marginBottom: "3px", lineHeight: 1.5 }}>
+                {item}
+              </li>
+            ))}
+          </ol>
+        );
+      }
+      currentList = null;
+    }
+  };
+
+  lines.forEach((rawLine, index) => {
+    const line = rawLine.trim();
+
+    if (!line) {
+      flushList();
+      return;
+    }
+
+    const ulMatch = line.match(/^[-*•]\s+(.+)/);
+    if (ulMatch) {
+      if (!currentList || currentList.type !== "ul") {
+        flushList();
+        currentList = { type: "ul", items: [] };
+      }
+      currentList.items.push(parseInline(ulMatch[1]));
+      return;
+    }
+
+    const olMatch = line.match(/^\d+[.)]\s+(.+)/);
+    if (olMatch) {
+      if (!currentList || currentList.type !== "ol") {
+        flushList();
+        currentList = { type: "ol", items: [] };
+      }
+      currentList.items.push(parseInline(olMatch[1]));
+      return;
+    }
+
+    flushList();
+
+    const headerMatch = line.match(/^(#{1,3})\s+(.+)/);
+    if (headerMatch) {
+      const level = headerMatch[1].length;
+      blocks.push(
+        <div
+          key={`header-${index}`}
+          style={{
+            fontWeight: 800,
+            fontSize: level === 1 ? "1.15em" : level === 2 ? "1.05em" : "1em",
+            marginTop: "6px",
+            marginBottom: "3px",
+          }}
+        >
+          {parseInline(headerMatch[2])}
+        </div>
+      );
+      return;
+    }
+
+    blocks.push(
+      <p
+        key={`p-${index}`}
+        style={{
+          margin: "0 0 5px 0",
+          lineHeight: 1.55,
+        }}
+      >
+        {parseInline(line)}
+      </p>
+    );
+  });
+
+  flushList();
+
+  return <div style={{ color }}>{blocks}</div>;
+};
+
 const Chatbot: React.FC<ChatbotProps> = ({
   chatbotDetails,
   theme = "aptus",
@@ -425,30 +603,10 @@ const Chatbot: React.FC<ChatbotProps> = ({
 
         const content = response.data.data;
 
-        // Parse Promo Tags
-        let promoType: "showcase" | "trust" | "payment" | null = null;
-        let cleanText = content;
-        if (cleanText.includes("[PROMO:showcase]")) {
-          promoType = "showcase";
-          cleanText = cleanText.replace(/\[PROMO:showcase\]/g, "").trim();
-        } else if (cleanText.includes("[PROMO:trust]")) {
-          promoType = "trust";
-          cleanText = cleanText.replace(/\[PROMO:trust\]/g, "").trim();
-        } else if (cleanText.includes("[PROMO:payment]")) {
-          promoType = "payment";
-          cleanText = cleanText.replace(/\[PROMO:payment\]/g, "").trim();
-        }
+        // Clean any residual promo tags so the agent never injects out-of-theme cards
+        const cleanText = (content || "").replace(/\[PROMO:[^\]]+\]/g, "").trim();
 
         await typewriterEffect(cleanText);
-
-        // Attach promo badge if triggered
-        if (promoType) {
-          setMessages((prev) => {
-            const copy = [...prev];
-            copy[copy.length - 1].promoType = promoType;
-            return copy;
-          });
-        }
 
         if (
           wantToShowSuggestions &&
@@ -591,7 +749,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
                   <SenderBadge>Live Support Agent</SenderBadge>
                 )}
                 <MessageBubble $config={themeConfig} role="bot">
-                  {message.message}
+                  <FormattedMessage content={message.message} color={themeConfig.botBubbleColor} />
                 </MessageBubble>
 
                 {/* Promotional In-Chat Cards */}
@@ -632,7 +790,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
           ) : (
             <UserMessageWrapper key={index} $config={themeConfig}>
               <MessageBubble $config={themeConfig} role="user">
-                {message.message}
+                <FormattedMessage content={message.message} color={themeConfig.userBubbleColor} />
               </MessageBubble>
               <AvatarCircle
                 $bg={themeConfig.userBubbleBg || "#007bff"}
@@ -841,21 +999,20 @@ const MessageBubble = styled.div<{ $config: ThemeConfig; role: "user" | "bot" }>
   line-height: 1.5;
   box-sizing: border-box;
   word-break: break-word;
-  white-space: pre-wrap;
 
   ${({ role, $config }) =>
     role === "user"
       ? `
     background-color: ${$config.userBubbleBg};
     color: ${$config.userBubbleColor};
-    border-radius: ${$config.userBubbleRadius};
+    border-radius: ${$config.bubbleRadius || $config.userBubbleRadius || $config.wrapperRadius || "0px"};
     border: ${$config.userBubbleBorder};
     box-shadow: ${$config.userBubbleShadow};
   `
       : `
     background-color: ${$config.botBubbleBg};
     color: ${$config.botBubbleColor};
-    border-radius: ${$config.botBubbleRadius};
+    border-radius: ${$config.bubbleRadius || $config.botBubbleRadius || $config.wrapperRadius || "0px"};
     border: ${$config.botBubbleBorder};
     box-shadow: ${$config.botBubbleShadow};
   `}
@@ -866,7 +1023,7 @@ const PromoCard = styled.div<{ $config: ThemeConfig }>`
   background: white;
   border: ${({ $config }) => $config.botBubbleBorder || "2px solid #1a1a1a"};
   box-shadow: ${({ $config }) => $config.botBubbleShadow || "2px 2px 0px #1a1a1a"};
-  border-radius: 8px;
+  border-radius: ${({ $config }) => $config.bubbleRadius || $config.wrapperRadius || "0px"};
   padding: 10px 12px;
   margin-top: 4px;
   animation: aptusSlideUp 0.3s ease-out;
@@ -908,7 +1065,7 @@ const SuggestionsContainer = styled.div`
 const Suggestion = styled.button<{ $config: ThemeConfig }>`
   background-color: white;
   border: ${({ $config }) => $config.buttonBorder || "1px solid #1a1a1a"};
-  border-radius: 6px;
+  border-radius: ${({ $config }) => $config.buttonRadius || $config.bubbleRadius || "0px"};
   padding: 6px 10px;
   font-size: 12px;
   font-weight: 600;
