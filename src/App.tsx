@@ -1,8 +1,7 @@
 import React, { ReactNode, useEffect, useState } from 'react';
-import { AiOutlineClose, AiOutlineWarning } from 'react-icons/ai';
-import { TbMessageChatbot } from 'react-icons/tb';
-import { RiRobot2Line, RiSparklingFill, RiCustomerService2Line, RiCpuLine, RiMagicLine } from 'react-icons/ri';
-import { FaBolt, FaBrain } from 'react-icons/fa';
+import { AiOutlineWarning } from 'react-icons/ai';
+import { TbMessageChatbot, TbUserHeart } from 'react-icons/tb';
+import { RiRobot2Line, RiSparklingFill, RiCustomerService2Line, RiShieldCheckLine, RiQuestionAnswerLine } from 'react-icons/ri';
 import styled from 'styled-components';
 import Chatbot from './components/chatbot';
 import getChatbotDetails from './utils/getChatbotDetails';
@@ -82,13 +81,19 @@ export function renderAvatarIcon(avatar?: string | ReactNode, size = 28, color?:
   if (!avatar || avatar === 'bot' || avatar === 'default') {
     return <RiRobot2Line size={size} color={color} />;
   }
-  if (avatar === 'sparkles') return <RiSparklingFill size={size} color={color} />;
-  if (avatar === 'chat') return <TbMessageChatbot size={size} color={color} />;
-  if (avatar === 'agent') return <RiCustomerService2Line size={size} color={color} />;
-  if (avatar === 'brain') return <FaBrain size={size} color={color} />;
-  if (avatar === 'cpu') return <RiCpuLine size={size} color={color} />;
-  if (avatar === 'zap') return <FaBolt size={size} color={color} />;
-  if (avatar === 'wand') return <RiMagicLine size={size} color={color} />;
+  if (avatar === 'sparkles' || avatar === 'spark') return <RiSparklingFill size={size} color={color} />;
+  if (avatar === 'chat' || avatar === 'message') return <TbMessageChatbot size={size} color={color} />;
+  if (avatar === 'agent' || avatar === 'support') return <RiCustomerService2Line size={size} color={color} />;
+  if (avatar === 'concierge' || avatar === 'assistant') return <TbUserHeart size={size} color={color} />;
+  if (avatar === 'shield' || avatar === 'security') return <RiShieldCheckLine size={size} color={color} />;
+  if (avatar === 'faq' || avatar === 'help') return <RiQuestionAnswerLine size={size} color={color} />;
+
+  // Legacy mappings for backward compatibility
+  if (avatar === 'brain') return <RiRobot2Line size={size} color={color} />;
+  if (avatar === 'cpu') return <TbMessageChatbot size={size} color={color} />;
+  if (avatar === 'zap') return <RiSparklingFill size={size} color={color} />;
+  if (avatar === 'wand') return <RiCustomerService2Line size={size} color={color} />;
+
   if (
     typeof avatar === 'string' &&
     (avatar.startsWith('http://') || avatar.startsWith('https://') || avatar.startsWith('data:image/'))
@@ -150,12 +155,12 @@ const ChatbotToggleButton = styled.div<{ $position: string; $config: ThemeConfig
 // Chatbot Wrapper
 const ChatbotWrapper = styled.div<{ $show: boolean; $position: string; $config: ThemeConfig }>`
   position: fixed;
-  bottom: 90px;
+  bottom: 20px;
   ${({ $position }) => ($position === 'left' ? 'left: 20px;' : 'right: 20px;')}
   width: 400px;
   height: 600px;
   max-width: calc(100vw - 32px);
-  max-height: calc(100vh - 120px);
+  max-height: calc(100vh - 40px);
   box-sizing: border-box;
   border-radius: ${({ $config }) => $config.wrapperRadius};
   border: ${({ $config }) => $config.wrapperBorder};
@@ -302,24 +307,24 @@ const App: React.FC<AppProps> = ({
 
   return (
     <AppContainer $fontFamily={themeConfig.fontFamily}>
-      <ChatbotToggleButton
-        $position={position}
-        $config={themeConfig}
-        $animate={!show && animate}
-        style={{
-          backgroundColor: toggleBtnBgColor || themeConfig.toggleBg,
-          color: toggleBtncolor || themeConfig.toggleColor,
-        }}
-        onClick={() => setShow(!show)}
-      >
-        {show ? (
-          <AiOutlineClose size={28} color={toggleBtncolor || themeConfig.toggleColor} />
-        ) : icon ? (
-          icon
-        ) : (
-          renderAvatarIcon(effectiveAvatar, 28, toggleBtncolor || themeConfig.toggleColor)
-        )}
-      </ChatbotToggleButton>
+      {!show && (
+        <ChatbotToggleButton
+          $position={position}
+          $config={themeConfig}
+          $animate={animate}
+          style={{
+            backgroundColor: toggleBtnBgColor || themeConfig.toggleBg,
+            color: toggleBtncolor || themeConfig.toggleColor,
+          }}
+          onClick={() => setShow(true)}
+        >
+          {icon ? (
+            icon
+          ) : (
+            renderAvatarIcon(effectiveAvatar, 28, toggleBtncolor || themeConfig.toggleColor)
+          )}
+        </ChatbotToggleButton>
+      )}
 
       <ChatbotWrapper $show={show} $position={position} $config={themeConfig}>
         {chatbotDetails ? (

@@ -3,8 +3,15 @@ import generateSession from "../utils/generateSession";
 import axios from "axios";
 import styled from "styled-components";
 import { IoSend, IoMic, IoMicOff } from "react-icons/io5";
-import { TbUser, TbMessageCircleOff, TbMessageChatbot } from "react-icons/tb";
-import { RiRobot2Line, RiCustomerService2Line, RiShieldCheckLine, RiSecurePaymentLine, RiSparklingFill, RiCpuLine, RiMagicLine } from "react-icons/ri";
+import { TbUser, TbMessageCircleOff, TbMessageChatbot, TbUserHeart } from "react-icons/tb";
+import {
+  RiRobot2Line,
+  RiCustomerService2Line,
+  RiShieldCheckLine,
+  RiSecurePaymentLine,
+  RiSparklingFill,
+  RiQuestionAnswerLine,
+} from "react-icons/ri";
 import { FaStar, FaBolt, FaLock, FaBrain } from "react-icons/fa";
 import { AiOutlineClose } from "react-icons/ai";
 import generateSugesstions from "../utils/generateSuggestions";
@@ -93,13 +100,46 @@ const Chatbot: React.FC<ChatbotProps> = ({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Voice States (Real-time live streaming STT + Groq Whisper fallback)
+  // Voice States (Real-time live streaming STT + Groq Whisper multilingual)
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recognitionRef = useRef<any>(null);
   const hasLiveTranscribedRef = useRef(false);
+
+  // Cleanly terminate all active microphone recording & hardware streams
+  const stopAllAudio = () => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {}
+      recognitionRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch (e) {}
+    }
+    if (mediaStreamRef.current) {
+      try {
+        mediaStreamRef.current.getTracks().forEach((track) => {
+          track.stop();
+          track.enabled = false;
+        });
+      } catch (e) {}
+      mediaStreamRef.current = null;
+    }
+    setIsRecording(false);
+  };
+
+  // Cleanup mic hardware stream on unmount
+  useEffect(() => {
+    return () => {
+      stopAllAudio();
+    };
+  }, []);
 
   // Live Agent States
   const [isHumanActive, setIsHumanActive] = useState(false);
@@ -158,25 +198,14 @@ const Chatbot: React.FC<ChatbotProps> = ({
     initAutoSession();
   }, [token, apiUrl, session.started]);
 
-  // Voice Input: Real-time speech recognition (simultaneous live transcription) + Whisper fallback
+  // Voice Input: Real-time speech recognition + Groq Whisper multilingual STT
   const toggleRecording = async () => {
     if (isRecording) {
-      // Stop real-time speech recognition
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch (e) {}
-      }
-
-      // Stop media recorder
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-        mediaRecorderRef.current.stop();
-      }
-      setIsRecording(false);
+      stopAllAudio();
     } else {
       hasLiveTranscribedRef.current = false;
 
-      // 1. Start Real-time live SpeechRecognition if supported by browser (captures words as you speak)
+      // 1. Start Real-time live SpeechRecognition if supported by browser
       const SpeechRecClass =
         typeof window !== "undefined" &&
         ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
@@ -186,7 +215,10 @@ const Chatbot: React.FC<ChatbotProps> = ({
           const recognition = new SpeechRecClass();
           recognition.continuous = true;
           recognition.interimResults = true;
-          recognition.lang = typeof navigator !== "undefined" && navigator.language ? navigator.language : "en-US";
+          recognition.lang =
+            typeof navigator !== "undefined" && navigator.languages && navigator.languages.length > 0
+              ? navigator.languages[0]
+              : "en-US";
 
           const initialInput = input.trim();
 
@@ -216,7 +248,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
         }
       }
 
-      // 2. Concurrently start MediaRecorder for Groq Whisper fallback
+      // 2. Concurrently start MediaRecorder for high-accuracy Groq Whisper multilingual transcription
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: {
@@ -227,6 +259,8 @@ const Chatbot: React.FC<ChatbotProps> = ({
             autoGainControl: true,
           },
         });
+
+        mediaStreamRef.current = stream;
 
         let mimeType = "audio/webm";
         if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
@@ -246,17 +280,19 @@ const Chatbot: React.FC<ChatbotProps> = ({
         };
 
         mediaRecorder.onstop = async () => {
-          stream.getTracks().forEach((track) => track.stop());
-
-          // If live speech recognition already transcribed the words simultaneously in real time, skip server call
-          if (hasLiveTranscribedRef.current) {
-            setIsTranscribing(false);
-            setIsRecording(false);
-            return;
+          // Immediately stop all hardware tracks
+          if (mediaStreamRef.current) {
+            try {
+              mediaStreamRef.current.getTracks().forEach((track) => {
+                track.stop();
+                track.enabled = false;
+              });
+            } catch (e) {}
+            mediaStreamRef.current = null;
           }
 
           const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-          if (audioBlob.size < 500) {
+          if (audioBlob.size < 600) {
             setIsRecording(false);
             setIsTranscribing(false);
             return;
@@ -269,25 +305,40 @@ const Chatbot: React.FC<ChatbotProps> = ({
             reader.onloadend = async () => {
               try {
                 const base64Audio = reader.result as string;
-                const res = await axios.post(`${apiUrl}/chatbot/transcribe`, {
-                  audio: base64Audio,
-                  mimeType: mimeType,
-                  token: token,
-                });
+                const res = await axios.post(
+                  `${apiUrl}/chatbot/transcribe`,
+                  {
+                    audio: base64Audio,
+                    mimeType: mimeType,
+                    token: token,
+                    prompt: "A natural conversation with a customer service assistant in English, Urdu (اردو), or Roman Urdu.",
+                  },
+                  {
+                    headers: {
+                      "Content-Type": "application/json",
+                      "x-chatbot-token": token,
+                    },
+                    timeout: 25000,
+                  }
+                );
 
                 if (res.data?.success && res.data.text) {
-                  const text = res.data.text.trim();
-                  setInput((prev) => (prev ? `${prev} ${text}` : text));
+                  const transcribedText = res.data.text.trim();
+                  if (transcribedText) {
+                    setInput((prev) => (prev && hasLiveTranscribedRef.current ? transcribedText : prev ? `${prev} ${transcribedText}` : transcribedText));
+                  }
                 }
               } catch (err: any) {
                 console.warn("Groq Whisper transcription notice:", err?.response?.data?.message || err.message);
               } finally {
                 setIsTranscribing(false);
+                setIsRecording(false);
               }
             };
           } catch (err: any) {
             console.error("Audio processing notice:", err);
             setIsTranscribing(false);
+            setIsRecording(false);
           }
         };
 
@@ -452,13 +503,19 @@ const Chatbot: React.FC<ChatbotProps> = ({
     if (!chatbotAvatar || chatbotAvatar === "bot" || chatbotAvatar === "default") {
       return <RiRobot2Line size={size} color={color} />;
     }
-    if (chatbotAvatar === "sparkles") return <RiSparklingFill size={size} color={color} />;
-    if (chatbotAvatar === "chat") return <TbMessageChatbot size={size} color={color} />;
-    if (chatbotAvatar === "agent") return <RiCustomerService2Line size={size} color={color} />;
-    if (chatbotAvatar === "brain") return <FaBrain size={size} color={color} />;
-    if (chatbotAvatar === "cpu") return <RiCpuLine size={size} color={color} />;
-    if (chatbotAvatar === "zap") return <FaBolt size={size} color={color} />;
-    if (chatbotAvatar === "wand") return <RiMagicLine size={size} color={color} />;
+    if (chatbotAvatar === "sparkles" || chatbotAvatar === "spark") return <RiSparklingFill size={size} color={color} />;
+    if (chatbotAvatar === "chat" || chatbotAvatar === "message") return <TbMessageChatbot size={size} color={color} />;
+    if (chatbotAvatar === "agent" || chatbotAvatar === "support") return <RiCustomerService2Line size={size} color={color} />;
+    if (chatbotAvatar === "concierge" || chatbotAvatar === "assistant") return <TbUserHeart size={size} color={color} />;
+    if (chatbotAvatar === "shield" || chatbotAvatar === "security") return <RiShieldCheckLine size={size} color={color} />;
+    if (chatbotAvatar === "faq" || chatbotAvatar === "help") return <RiQuestionAnswerLine size={size} color={color} />;
+
+    // Legacy fallbacks
+    if (chatbotAvatar === "brain") return <RiRobot2Line size={size} color={color} />;
+    if (chatbotAvatar === "cpu") return <TbMessageChatbot size={size} color={color} />;
+    if (chatbotAvatar === "zap") return <RiSparklingFill size={size} color={color} />;
+    if (chatbotAvatar === "wand") return <RiCustomerService2Line size={size} color={color} />;
+
     if (
       typeof chatbotAvatar === "string" &&
       (chatbotAvatar.startsWith("http://") || chatbotAvatar.startsWith("https://") || chatbotAvatar.startsWith("data:image/"))
@@ -490,17 +547,19 @@ const Chatbot: React.FC<ChatbotProps> = ({
 
         <HeaderControls>
           <HeaderIconButton
+            $config={themeConfig}
             title="Request Live Human Agent"
             onClick={handleRequestHuman}
-            style={{ color: themeConfig.headerColor, borderColor: "rgba(255,255,255,0.3)" }}
+            style={{ color: themeConfig.headerColor }}
           >
             <RiCustomerService2Line size={18} />
           </HeaderIconButton>
           {onClose && (
             <HeaderIconButton
+              $config={themeConfig}
               title="Close Chat"
               onClick={onClose}
-              style={{ color: themeConfig.headerColor, borderColor: "rgba(255,255,255,0.3)" }}
+              style={{ color: themeConfig.headerColor }}
             >
               <AiOutlineClose size={16} />
             </HeaderIconButton>
@@ -603,18 +662,8 @@ const Chatbot: React.FC<ChatbotProps> = ({
         <div ref={messagesEndRef} />
       </MessagesContainer>
 
-      {/* Input Bar with Groq Whisper Voice Input */}
+      {/* Input Bar with Input, Voice Mic on Right, and Send */}
       <ChatInputContainer $config={themeConfig}>
-        <VoiceButton
-          title={isRecording ? "Recording voice... Click to convert" : isTranscribing ? "Transcribing voice with Whisper..." : "Voice Input (Whisper STT)"}
-          onClick={toggleRecording}
-          $isListening={isRecording}
-          type="button"
-          disabled={isTranscribing}
-        >
-          {isRecording ? <IoMicOff size={18} color="#ef4444" /> : <IoMic size={18} />}
-        </VoiceButton>
-
         <ChatInput
           $config={themeConfig}
           type="text"
@@ -625,6 +674,16 @@ const Chatbot: React.FC<ChatbotProps> = ({
           }}
           placeholder={isRecording ? "Listening to your voice..." : isTranscribing ? "Transcribing speech..." : "Type a message..."}
         />
+        <VoiceButton
+          $config={themeConfig}
+          title={isRecording ? "Recording voice... Click to convert" : isTranscribing ? "Transcribing voice with Whisper..." : "Voice Input (Whisper STT)"}
+          onClick={toggleRecording}
+          $isListening={isRecording}
+          type="button"
+          disabled={isTranscribing}
+        >
+          {isRecording ? <IoMicOff size={18} color="#ef4444" /> : <IoMic size={18} />}
+        </VoiceButton>
         <SendButton $config={themeConfig} onClick={handleSendMessage} disabled={loading}>
           <IoSend size={18} />
         </SendButton>
@@ -688,11 +747,11 @@ const HeaderControls = styled.div`
   gap: 6px;
 `;
 
-const HeaderIconButton = styled.button<{ $active?: boolean }>`
+const HeaderIconButton = styled.button<{ $config?: ThemeConfig; $active?: boolean }>`
   background: ${({ $active }) => ($active ? "rgba(255, 255, 255, 0.3)" : "rgba(255, 255, 255, 0.15)")};
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.35);
   color: inherit;
-  border-radius: 6px;
+  border-radius: ${({ $config }) => ($config?.buttonRadius !== undefined ? $config.buttonRadius : "0px")};
   width: 32px;
   height: 32px;
   display: flex;
@@ -861,29 +920,37 @@ const Suggestion = styled.button<{ $config: ThemeConfig }>`
 
 const ChatInputContainer = styled.div<{ $config: ThemeConfig }>`
   padding: 10px 12px;
-  background-color: ${({ $config }) => $config.inputAreaBg || "white"};
-  border-top: ${({ $config }) => $config.inputAreaBorderTop || "1px solid #e5e7eb"};
+  background-color: ${({ $config }) => $config.inputContainerBg || $config.inputAreaBg || "white"};
+  border-top: ${({ $config }) => $config.inputContainerBorderTop || $config.inputAreaBorderTop || "2px solid #1a1a1a"};
   display: flex;
   align-items: center;
   gap: 8px;
 `;
 
-const VoiceButton = styled.button<{ $isListening: boolean }>`
-  background: ${({ $isListening }) => ($isListening ? "#fee2e2" : "#f3f4f6")};
-  border: 1px solid ${({ $isListening }) => ($isListening ? "#ef4444" : "#d1d5db")};
-  color: ${({ $isListening }) => ($isListening ? "#ef4444" : "#4b5563")};
-  border-radius: 8px;
+const VoiceButton = styled.button<{ $config: ThemeConfig; $isListening: boolean }>`
+  background-color: ${({ $isListening, $config }) => ($isListening ? "#fee2e2" : $config.inputBg || "#ffffff")};
+  border: ${({ $isListening, $config }) => ($isListening ? "2px solid #ef4444" : $config.inputBorder || "1px solid #1a1a1a")};
+  color: ${({ $isListening, $config }) => ($isListening ? "#ef4444" : $config.inputColor || "#1a1a1a")};
+  border-radius: ${({ $config }) => ($config.buttonRadius !== undefined ? $config.buttonRadius : "0px")};
+  box-shadow: ${({ $config }) => ($config.buttonShadow ? $config.buttonShadow : "none")};
   width: 38px;
   height: 38px;
+  min-width: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease-in-out;
   animation: ${({ $isListening }) => ($isListening ? "aptusPulse 1.2s infinite ease-in-out" : "none")};
 
   &:hover {
-    background: ${({ $isListening }) => ($isListening ? "#fecaca" : "#e5e7eb")};
+    background-color: ${({ $isListening }) => ($isListening ? "#fecaca" : "#f3f4f6")};
+    transform: scale(1.05);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 `;
 
@@ -891,14 +958,14 @@ const ChatInput = styled.input<{ $config: ThemeConfig }>`
   flex: 1;
   padding: 10px 14px;
   font-size: 13px;
-  background-color: ${({ $config }) => $config.inputBg || "#f9fafb"};
+  background-color: ${({ $config }) => $config.inputBg || "#ffffff"};
   color: ${({ $config }) => $config.inputColor || "#111827"};
-  border: ${({ $config }) => $config.inputBorder || "1px solid #d1d5db"};
-  border-radius: ${({ $config }) => $config.inputRadius || "8px"};
+  border: ${({ $config }) => $config.inputBorder || "1px solid #1a1a1a"};
+  border-radius: ${({ $config }) => ($config.inputRadius !== undefined ? $config.inputRadius : "0px")};
   outline: none;
 
   &:focus {
-    border-color: ${({ $config }) => $config.headerBg};
+    border-color: ${({ $config }) => $config.inputFocusBorder || $config.headerBg};
   }
 `;
 
@@ -906,18 +973,19 @@ const SendButton = styled.button<{ $config: ThemeConfig }>`
   background-color: ${({ $config }) => $config.buttonBg};
   color: ${({ $config }) => $config.buttonColor};
   border: ${({ $config }) => $config.buttonBorder || "none"};
-  border-radius: ${({ $config }) => $config.buttonRadius || "8px"};
+  border-radius: ${({ $config }) => ($config.buttonRadius !== undefined ? $config.buttonRadius : "0px")};
   box-shadow: ${({ $config }) => $config.buttonShadow || "none"};
   width: 38px;
   height: 38px;
+  min-width: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.15s ease-in-out;
 
   &:hover {
-    opacity: 0.9;
+    background-color: ${({ $config }) => $config.buttonHoverBg || $config.buttonBg};
     transform: scale(1.05);
   }
 
