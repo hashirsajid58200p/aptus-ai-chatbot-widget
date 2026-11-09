@@ -718,17 +718,69 @@ const Chatbot: React.FC<ChatbotProps> = ({
   };
 
   // Request Live Agent
-  const handleRequestHuman = () => {
+  const handleRequestHuman = async () => {
+    if (session?.sessionId) {
+      try {
+        await axios.post(
+          `${apiUrl}/session/request-human`,
+          { sessionId: session.sessionId },
+          { headers: { "x-chatbot-token": token } }
+        );
+      } catch (e) {
+        // Silently continue
+      }
+    }
+
     setMessages((prev) => [
       ...prev,
       {
         role: "bot",
-        message: "Live agent handoff is monitored by our support desk. If all human agents are currently offline, our AI assistant is actively handling questions 24/7!",
-        sender: "ai",
+        message: "You've requested a live support agent! A support representative will take over this chat shortly. Please feel free to type your question.",
+        sender: "human_agent",
       },
     ]);
     scrollToBottom();
   };
+
+  // Poll for live support agent replies in the active session
+  useEffect(() => {
+    if (!session?.sessionId || !apiUrl || !token) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const res = await axios.get(`${apiUrl}/session/messages`, {
+          params: { sessionId: session.sessionId },
+          headers: { "x-chatbot-token": token },
+        });
+
+        if (res.data?.success && Array.isArray(res.data.messages)) {
+          const serverMsgs = res.data.messages;
+          setMessages((prevMsgs) => {
+            const newHumanMsgs = serverMsgs.filter(
+              (sm: any) =>
+                sm.sender === "human_agent" &&
+                !prevMsgs.some((pm) => pm.message === sm.message && pm.sender === "human_agent")
+            );
+
+            if (newHumanMsgs.length > 0) {
+              const formattedNew = newHumanMsgs.map((m: any) => ({
+                role: "bot" as const,
+                message: m.message,
+                sender: "human_agent" as const,
+              }));
+              setTimeout(scrollToBottom, 50);
+              return [...prevMsgs, ...formattedNew];
+            }
+            return prevMsgs;
+          });
+        }
+      } catch (err) {
+        // Silent error
+      }
+    }, 4000);
+
+    return () => clearInterval(pollInterval);
+  }, [session?.sessionId, apiUrl, token]);
 
   useEffect(() => {
     const getSuggestionsList = async () => {
