@@ -63,12 +63,12 @@ interface ChatbotProps {
   onClose?: () => void;
 }
 
-// Safe, dependency-free Markdown parser for formatted chat replies
+// Full GitHub-Flavored Markdown parser for formatted chat replies
 const FormattedMessage: React.FC<{ content: string; color?: string }> = ({ content, color }) => {
   if (!content) return null;
 
   const parseInline = (text: string): React.ReactNode[] => {
-    const tokenRegex = /(\*\*([^*]+)\*\*|__([^_]+)__|`([^`]+)`|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|\*([^*]+)\*|_([^_]+)_)/g;
+    const tokenRegex = /(?:\*\*\*([^*]+)\*\*\*|___([^_]+)___|\*\*([^*]+)\*\*|__([^_]+)__|(?<!\*)\*([^*]+)\*(?!\*)|(?<!_)_([^_]+)_(?!_)|~~([^~]+)~~|`([^`]+)`|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\))/g;
     const elements: React.ReactNode[] = [];
     let lastIndex = 0;
     let match: RegExpExecArray | null;
@@ -78,13 +78,31 @@ const FormattedMessage: React.FC<{ content: string; color?: string }> = ({ conte
         elements.push(text.slice(lastIndex, match.index));
       }
 
-      if (match[2] || match[3]) {
+      if (match[1] || match[2]) {
         elements.push(
-          <strong key={match.index} style={{ fontWeight: 700, color: "inherit" }}>
-            {match[2] || match[3]}
+          <strong key={match.index} style={{ fontWeight: 800, fontStyle: "italic", color: "inherit" }}>
+            {match[1] || match[2]}
           </strong>
         );
-      } else if (match[4]) {
+      } else if (match[3] || match[4]) {
+        elements.push(
+          <strong key={match.index} style={{ fontWeight: 800, color: "inherit" }}>
+            {match[3] || match[4]}
+          </strong>
+        );
+      } else if (match[5] || match[6]) {
+        elements.push(
+          <em key={match.index} style={{ fontStyle: "italic", color: "inherit" }}>
+            {match[5] || match[6]}
+          </em>
+        );
+      } else if (match[7]) {
+        elements.push(
+          <del key={match.index} style={{ textDecoration: "line-through", opacity: 0.75 }}>
+            {match[7]}
+          </del>
+        );
+      } else if (match[8]) {
         elements.push(
           <code
             key={match.index}
@@ -96,26 +114,20 @@ const FormattedMessage: React.FC<{ content: string; color?: string }> = ({ conte
               fontSize: "0.9em",
             }}
           >
-            {match[4]}
+            {match[8]}
           </code>
         );
-      } else if (match[5] && match[6]) {
+      } else if (match[9] && match[10]) {
         elements.push(
           <a
             key={match.index}
-            href={match[6]}
+            href={match[10]}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ textDecoration: "underline", color: "inherit", fontWeight: 600 }}
+            style={{ textDecoration: "underline", color: "inherit", fontWeight: 700 }}
           >
-            {match[5]}
+            {match[9]}
           </a>
-        );
-      } else if (match[7] || match[8]) {
-        elements.push(
-          <em key={match.index} style={{ fontStyle: "italic" }}>
-            {match[7] || match[8]}
-          </em>
         );
       }
 
@@ -126,19 +138,28 @@ const FormattedMessage: React.FC<{ content: string; color?: string }> = ({ conte
       elements.push(text.slice(lastIndex));
     }
 
-    return elements;
+    return elements.length > 0 ? elements : [text];
   };
 
   const lines = content.split("\n");
-  const blocks: React.ReactNode[] = [];
-  let currentList: { type: "ul" | "ol"; items: React.ReactNode[] } | null = null;
+  const nodes: React.ReactNode[] = [];
+
+  let inCodeBlock = false;
+  let codeBlockLang = "";
+  let codeBlockLines: string[] = [];
+
+  let inTable = false;
+  let tableHeader: string[] = [];
+  let tableRows: string[][] = [];
+
+  let currentList: { type: "ul" | "ol" | "task"; items: any[] } | null = null;
 
   const flushList = () => {
     if (currentList) {
       if (currentList.type === "ul") {
-        blocks.push(
+        nodes.push(
           <ul
-            key={`list-${blocks.length}`}
+            key={`list-${nodes.length}`}
             style={{
               paddingLeft: "18px",
               margin: "4px 0 6px 0",
@@ -152,10 +173,10 @@ const FormattedMessage: React.FC<{ content: string; color?: string }> = ({ conte
             ))}
           </ul>
         );
-      } else {
-        blocks.push(
+      } else if (currentList.type === "ol") {
+        nodes.push(
           <ol
-            key={`list-${blocks.length}`}
+            key={`list-${nodes.length}`}
             style={{
               paddingLeft: "18px",
               margin: "4px 0 6px 0",
@@ -169,63 +190,256 @@ const FormattedMessage: React.FC<{ content: string; color?: string }> = ({ conte
             ))}
           </ol>
         );
+      } else if (currentList.type === "task") {
+        nodes.push(
+          <div key={`task-${nodes.length}`} style={{ margin: "4px 0 6px 0" }}>
+            {currentList.items.map((it, idx) => (
+              <div key={idx} style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "3px" }}>
+                <input type="checkbox" readOnly checked={it.checked} style={{ pointerEvents: "none" }} />
+                <span style={{ textDecoration: it.checked ? "line-through" : "none", opacity: it.checked ? 0.75 : 1 }}>
+                  {it.text}
+                </span>
+              </div>
+            ))}
+          </div>
+        );
       }
       currentList = null;
     }
   };
 
-  lines.forEach((rawLine, index) => {
+  const flushTable = () => {
+    if (inTable) {
+      nodes.push(
+        <div key={`table-${nodes.length}`} style={{ overflowX: "auto", margin: "6px 0", border: "1px solid rgba(0,0,0,0.15)", borderRadius: "4px" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px", textAlign: "left" }}>
+            {tableHeader.length > 0 && (
+              <thead>
+                <tr style={{ backgroundColor: "rgba(0,0,0,0.06)", fontWeight: 700 }}>
+                  {tableHeader.map((th, i) => (
+                    <th key={i} style={{ padding: "4px 8px", borderBottom: "1px solid rgba(0,0,0,0.15)" }}>
+                      {parseInline(th)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+            )}
+            <tbody>
+              {tableRows.map((row, rIdx) => (
+                <tr key={rIdx} style={{ borderBottom: "1px solid rgba(0,0,0,0.08)" }}>
+                  {row.map((cell, cIdx) => (
+                    <td key={cIdx} style={{ padding: "4px 8px" }}>
+                      {parseInline(cell)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+      inTable = false;
+      tableHeader = [];
+      tableRows = [];
+    }
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i];
     const line = rawLine.trim();
+
+    // Code Block Delimiter
+    if (line.startsWith("```")) {
+      flushList();
+      flushTable();
+      if (inCodeBlock) {
+        nodes.push(
+          <div
+            key={`code-${nodes.length}`}
+            style={{
+              margin: "6px 0",
+              backgroundColor: "#1e1e1e",
+              color: "#f8f8f2",
+              borderRadius: "4px",
+              overflow: "hidden",
+              border: "1px solid #333",
+            }}
+          >
+            {codeBlockLang && (
+              <div
+                style={{
+                  backgroundColor: "#2d2d2d",
+                  padding: "2px 8px",
+                  fontSize: "9px",
+                  fontFamily: "monospace",
+                  textTransform: "uppercase",
+                  color: "#eab308",
+                  borderBottom: "1px solid #444",
+                }}
+              >
+                {codeBlockLang}
+              </div>
+            )}
+            <pre
+              style={{
+                margin: 0,
+                padding: "8px 10px",
+                fontFamily: "monospace",
+                fontSize: "11px",
+                overflowX: "auto",
+                lineHeight: 1.45,
+                color: "#a7f3d0",
+              }}
+            >
+              <code>{codeBlockLines.join("\n")}</code>
+            </pre>
+          </div>
+        );
+        inCodeBlock = false;
+        codeBlockLang = "";
+        codeBlockLines = [];
+      } else {
+        inCodeBlock = true;
+        codeBlockLang = line.slice(3).trim();
+        codeBlockLines = [];
+      }
+      continue;
+    }
+
+    if (inCodeBlock) {
+      codeBlockLines.push(rawLine);
+      continue;
+    }
 
     if (!line) {
       flushList();
-      return;
+      flushTable();
+      continue;
     }
 
-    const ulMatch = line.match(/^[-*•]\s+(.+)/);
-    if (ulMatch) {
-      if (!currentList || currentList.type !== "ul") {
-        flushList();
-        currentList = { type: "ul", items: [] };
+    // Table Row Detection
+    if (line.startsWith("|") && line.endsWith("|")) {
+      flushList();
+      const cells = line
+        .slice(1, -1)
+        .split("|")
+        .map((c) => c.trim());
+
+      const isSeparator = cells.every((c) => /^:?-+:?$/.test(c));
+
+      if (isSeparator) {
+        inTable = true;
+      } else if (!inTable && tableHeader.length === 0) {
+        tableHeader = cells;
+      } else {
+        inTable = true;
+        tableRows.push(cells);
       }
-      currentList.items.push(parseInline(ulMatch[1]));
-      return;
+      continue;
+    } else {
+      flushTable();
     }
 
-    const olMatch = line.match(/^\d+[.)]\s+(.+)/);
-    if (olMatch) {
-      if (!currentList || currentList.type !== "ol") {
-        flushList();
-        currentList = { type: "ol", items: [] };
-      }
-      currentList.items.push(parseInline(olMatch[1]));
-      return;
+    // Horizontal Rule: ---, ***, ___
+    if (/^(\-{3,}|\*{3,}|_{3,})$/.test(line)) {
+      flushList();
+      nodes.push(
+        <hr
+          key={`hr-${nodes.length}`}
+          style={{
+            margin: "8px 0",
+            border: 0,
+            borderTop: "1px solid rgba(0, 0, 0, 0.2)",
+          }}
+        />
+      );
+      continue;
     }
 
-    flushList();
-
-    const headerMatch = line.match(/^(#{1,3})\s+(.+)/);
+    // Headings
+    const headerMatch = line.match(/^(#{1,6})\s+(.*)$/);
     if (headerMatch) {
+      flushList();
       const level = headerMatch[1].length;
-      blocks.push(
+      nodes.push(
         <div
-          key={`header-${index}`}
+          key={`h-${nodes.length}`}
           style={{
             fontWeight: 800,
-            fontSize: level === 1 ? "1.15em" : level === 2 ? "1.05em" : "1em",
+            fontSize: level === 1 ? "1.2em" : level === 2 ? "1.1em" : "1.02em",
             marginTop: "6px",
             marginBottom: "3px",
+            lineHeight: 1.3,
           }}
         >
           {parseInline(headerMatch[2])}
         </div>
       );
-      return;
+      continue;
     }
 
-    blocks.push(
+    // Task List: - [ ] or - [x]
+    const taskMatch = line.match(/^([\*\-\+•])\s+\[([ xX])\]\s+(.*)$/);
+    if (taskMatch) {
+      if (!currentList || currentList.type !== "task") {
+        flushList();
+        currentList = { type: "task", items: [] };
+      }
+      currentList.items.push({
+        checked: taskMatch[2].toLowerCase() === "x",
+        text: parseInline(taskMatch[3]),
+      });
+      continue;
+    }
+
+    // Bullet List
+    const ulMatch = line.match(/^([\*\-\+•])\s+(.*)$/);
+    if (ulMatch) {
+      if (!currentList || currentList.type !== "ul") {
+        flushList();
+        currentList = { type: "ul", items: [] };
+      }
+      currentList.items.push(parseInline(ulMatch[2]));
+      continue;
+    }
+
+    // Numbered List
+    const olMatch = line.match(/^(\d+)[\.\)]\s+(.*)$/);
+    if (olMatch) {
+      if (!currentList || currentList.type !== "ol") {
+        flushList();
+        currentList = { type: "ol", items: [] };
+      }
+      currentList.items.push(parseInline(olMatch[2]));
+      continue;
+    }
+
+    // Blockquote
+    const quoteMatch = line.match(/^>\s+(.*)$/);
+    if (quoteMatch) {
+      flushList();
+      nodes.push(
+        <blockquote
+          key={`q-${nodes.length}`}
+          style={{
+            margin: "4px 0",
+            paddingLeft: "8px",
+            borderLeft: "3px solid #FF4D00",
+            fontStyle: "italic",
+            opacity: 0.9,
+          }}
+        >
+          {parseInline(quoteMatch[1])}
+        </blockquote>
+      );
+      continue;
+    }
+
+    // Paragraph
+    flushList();
+    nodes.push(
       <p
-        key={`p-${index}`}
+        key={`p-${nodes.length}`}
         style={{
           margin: "0 0 5px 0",
           lineHeight: 1.55,
@@ -234,11 +448,12 @@ const FormattedMessage: React.FC<{ content: string; color?: string }> = ({ conte
         {parseInline(line)}
       </p>
     );
-  });
+  }
 
   flushList();
+  flushTable();
 
-  return <div style={{ color }}>{blocks}</div>;
+  return <div style={{ color }}>{nodes}</div>;
 };
 
 const Chatbot: React.FC<ChatbotProps> = ({
