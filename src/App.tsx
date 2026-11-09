@@ -249,6 +249,16 @@ const App: React.FC<AppProps> = ({
   const [chatbotDetails, setChatbotDetails] = useState<ChatbotDetails | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Cached avatar from localStorage to eliminate flicker on page refresh
+  const [cachedAvatar, setCachedAvatar] = useState<string>(() => {
+    try {
+      if (typeof window !== "undefined") {
+        return localStorage.getItem("aptus_saved_avatar") || "chat";
+      }
+    } catch (e) {}
+    return "chat";
+  });
+
   // Auto-read token from props, or environment variable, or window global
   const activeToken =
     propToken ||
@@ -268,7 +278,7 @@ const App: React.FC<AppProps> = ({
   const effectiveBorderRadius = propBorderRadius || chatbotDetails?.borderRadius;
   const effectiveBotName = propBotName || chatbotDetails?.botName || chatbotDetails?.bussinessName || 'Aptus AI';
   const effectiveWelcomeMessage = propWelcomeMessage || chatbotDetails?.welcomeMessage;
-  const effectiveAvatar = propChatbotAvatar || chatbotDetails?.chatbotAvatar || 'bot';
+  const effectiveAvatar = propChatbotAvatar || chatbotDetails?.chatbotAvatar || cachedAvatar || 'chat';
 
   const themeConfig = getThemeConfig(effectiveTheme, effectiveBorderRadius, toggleBtnRadius, fontFamily);
 
@@ -280,14 +290,15 @@ const App: React.FC<AppProps> = ({
     themeConfig.userBubbleBg = effectivePrimaryColor;
   }
 
-  // Ensure toggle color always has crisp contrast against toggle background
+  // Ensure toggle and bubble colors always have readable contrast
   themeConfig.toggleColor = getContrastColor(themeConfig.toggleBg);
+  themeConfig.userBubbleColor = getContrastColor(themeConfig.userBubbleBg);
 
   // If textColor is customized
   if (effectiveTextColor) {
     themeConfig.headerColor = effectiveTextColor;
-  } else if (effectivePrimaryColor && effectivePrimaryColor !== 'default') {
-    themeConfig.headerColor = getContrastColor(effectivePrimaryColor);
+  } else {
+    themeConfig.headerColor = getContrastColor(themeConfig.headerBg);
   }
 
   useEffect(() => {
@@ -301,6 +312,12 @@ const App: React.FC<AppProps> = ({
         const details = await getChatbotDetails(activeToken, activeApiUrl);
         if (details) {
           setChatbotDetails(details);
+          if (details.chatbotAvatar) {
+            setCachedAvatar(details.chatbotAvatar);
+            try {
+              localStorage.setItem("aptus_saved_avatar", details.chatbotAvatar);
+            } catch (e) {}
+          }
         } else {
           setErrorMessage("Failed to load chatbot details");
         }

@@ -680,11 +680,19 @@ const Chatbot: React.FC<ChatbotProps> = ({
         );
 
         const content = response.data.data;
+        const isHumanMode = response.data?.isHumanMode;
 
-        // Clean any residual promo tags so the agent never injects out-of-theme cards
-        const cleanText = (content || "").replace(/\[PROMO:[^\]]+\]/g, "").trim();
-
-        await typewriterEffect(cleanText);
+        if (isHumanMode) {
+          setIsHumanActive(true);
+          setMessages((prevMessages) => [
+            ...prevMessages,
+            { role: "bot", message: content, sender: "human_agent" },
+          ]);
+        } else {
+          // Clean any residual promo tags so the agent never injects out-of-theme cards
+          const cleanText = (content || "").replace(/\[PROMO:[^\]]+\]/g, "").trim();
+          await typewriterEffect(cleanText);
+        }
 
         if (
           wantToShowSuggestions &&
@@ -736,11 +744,12 @@ const Chatbot: React.FC<ChatbotProps> = ({
       }
     }
 
+    setIsHumanActive(true);
     setMessages((prev) => [
       ...prev,
       {
         role: "bot",
-        message: "You've requested a live support agent! A support representative will take over this chat shortly. Please feel free to type your question.",
+        message: "Live agent requested! A support representative has been notified and will join shortly. Please type your inquiry.",
         sender: "human_agent",
       },
     ]);
