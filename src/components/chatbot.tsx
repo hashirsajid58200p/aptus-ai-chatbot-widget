@@ -398,23 +398,24 @@ const Chatbot: React.FC<ChatbotProps> = ({
   }, [token, apiUrl]);
 
   const handleSaveVisitorName = async () => {
-    const cleanName = visitorNameInput.trim();
-    if (!cleanName) return;
-    const cleanEmail = visitorEmailInput.trim();
+    const cleanName = visitorNameInput.trim() || "Website Visitor";
+    const cleanEmail = visitorEmailInput.trim() || "visitor@web.local";
     const profile = { name: cleanName, email: cleanEmail };
     try {
       localStorage.setItem("aptus_visitor_profile", JSON.stringify(profile));
     } catch (e) {}
     setNeedsName(false);
 
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "bot",
-        message: `Nice to meet you, ${cleanName}! How can I assist you today?`,
-        sender: "ai",
-      },
-    ]);
+    if (cleanName !== "Website Visitor") {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "bot",
+          message: `Nice to meet you, ${cleanName}! How can I assist you today?`,
+          sender: "ai",
+        },
+      ]);
+    }
 
     await createVisitorSession(cleanName, cleanEmail);
   };
@@ -615,23 +616,6 @@ const Chatbot: React.FC<ChatbotProps> = ({
       setLoading(true);
       scrollToBottom();
 
-      if (needsName) {
-        const cleanName = userMessage;
-        setNeedsName(false);
-        const profile = { name: cleanName, email: "" };
-        try {
-          localStorage.setItem("aptus_visitor_profile", JSON.stringify(profile));
-        } catch (e) {}
-        setMessages((prev) => [
-          ...prev,
-          { role: "bot", message: `Nice to meet you, ${cleanName}! How can I assist you today?`, sender: "ai" },
-        ]);
-        await createVisitorSession(cleanName, "visitor@web.local");
-        setLoading(false);
-        scrollToBottom();
-        return;
-      }
-
       try {
         let activeSessionId = session.sessionId;
         if (!activeSessionId) {
@@ -811,212 +795,234 @@ const Chatbot: React.FC<ChatbotProps> = ({
         </HeaderControls>
       </Header>
 
-      {/* Messages Feed */}
-      <MessagesContainer ref={messagesContainerRef} $config={themeConfig}>
-        {messages.map((message, index) =>
-          message.role === "bot" ? (
-            <BotMessageWrapper key={index} $config={themeConfig}>
-              <AvatarCircle $bg="rgba(0, 0, 0, 0.08)" $color={themeConfig.botBubbleColor || "#1a1a1a"}>
-                {message.isError ? (
-                  <TbMessageCircleOff size={16} />
-                ) : message.sender === "human_agent" ? (
-                  <RiCustomerService2Line size={16} />
-                ) : (
-                  renderAvatar(16, themeConfig.botBubbleColor || "#1a1a1a")
-                )}
-              </AvatarCircle>
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxWidth: "100%" }}>
-                {message.sender === "human_agent" && (
-                  <SenderBadge>Live Support Agent</SenderBadge>
-                )}
-                <MessageBubble $config={themeConfig} role="bot">
-                  <FormattedMessage content={message.message} color={themeConfig.botBubbleColor} />
-                </MessageBubble>
-
-                {/* Promotional In-Chat Cards */}
-                {message.promoType === "showcase" && (
-                  <PromoCard $config={themeConfig}>
-                    <PromoTitle><RiSparklingFill color="#eab308" /> Feature Showcase</PromoTitle>
-                    <PromoGrid>
-                      <PromoItem><FaBolt color="#3b82f6" /> Instant AI Answers</PromoItem>
-                      <PromoItem><FaLock color="#10b981" /> 24/7 Automation</PromoItem>
-                      <PromoItem><FaStar color="#f59e0b" /> High Accuracy</PromoItem>
-                    </PromoGrid>
-                  </PromoCard>
-                )}
-
-                {message.promoType === "trust" && (
-                  <PromoCard $config={themeConfig}>
-                    <PromoTitle><RiShieldCheckLine color="#10b981" /> Enterprise Trust & Security</PromoTitle>
-                    <PromoGrid>
-                      <PromoItem>🛡️ 256-Bit SSL Encrypted</PromoItem>
-                      <PromoItem>⭐ Rated 4.9/5 by Clients</PromoItem>
-                      <PromoItem>👥 Zero-Config Widget</PromoItem>
-                    </PromoGrid>
-                  </PromoCard>
-                )}
-
-                {message.promoType === "payment" && (
-                  <PromoCard $config={themeConfig}>
-                    <PromoTitle><RiSecurePaymentLine color="#6366f1" /> Verified Payment Methods</PromoTitle>
-                    <PromoGrid>
-                      <PromoItem>💳 Visa & Mastercard</PromoItem>
-                      <PromoItem>💎 PayPal Checkout</PromoItem>
-                      <PromoItem>🔒 Stripe Protected</PromoItem>
-                    </PromoGrid>
-                  </PromoCard>
-                )}
-              </div>
-            </BotMessageWrapper>
-          ) : (
-            <UserMessageWrapper key={index} $config={themeConfig}>
-              <MessageBubble $config={themeConfig} role="user">
-                <FormattedMessage content={message.message} color={themeConfig.userBubbleColor} />
-              </MessageBubble>
-              <AvatarCircle
-                $bg={themeConfig.userBubbleBg || "#007bff"}
-                $color={themeConfig.userBubbleColor || "#ffffff"}
-              >
-                <TbUser size={16} />
-              </AvatarCircle>
-            </UserMessageWrapper>
-          )
-        )}
-
-        {needsName && (
-          <div
-            style={{
-              margin: "6px 0 12px 0",
-              padding: "12px 14px",
-              borderRadius: themeConfig.bubbleRadius || "8px",
-              backgroundColor: themeConfig.botBubbleBg || "#F3F4F6",
-              color: themeConfig.botBubbleColor || "#111827",
-              border: themeConfig.botBubbleBorder || "1px solid rgba(0,0,0,0.1)",
-              display: "flex",
-              flexDirection: "column",
-              gap: "8px",
-              maxWidth: "92%",
-            }}
-          >
-            <div style={{ fontWeight: 800, fontSize: "11px", textTransform: "uppercase" }}>
-              Before we begin, please enter your name:
+      {/* Pre-Chat Lead Capture Gate */}
+      {needsName ? (
+        <PreChatContainer $config={themeConfig}>
+          <div style={{ textAlign: "center", marginBottom: "16px", width: "100%" }}>
+            <div
+              style={{
+                width: "56px",
+                height: "56px",
+                borderRadius: "50%",
+                backgroundColor: "rgba(0, 0, 0, 0.06)",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: "10px",
+                color: themeConfig.buttonBg || "#FF4D00",
+              }}
+            >
+              {renderAvatar(28, themeConfig.buttonBg || "#FF4D00")}
             </div>
-            <input
-              type="text"
-              placeholder="Your Name (Required)"
-              value={visitorNameInput}
-              onChange={(e) => setVisitorNameInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && visitorNameInput.trim()) {
-                  handleSaveVisitorName();
-                }
-              }}
-              style={{
-                width: "100%",
-                padding: "7px 10px",
-                borderRadius: themeConfig.inputRadius || "4px",
-                border: "1px solid rgba(0,0,0,0.2)",
-                fontSize: "12px",
-                outline: "none",
-                backgroundColor: "#fff",
-                color: "#111",
-                boxSizing: "border-box",
-              }}
-            />
-            <input
-              type="email"
-              placeholder="Your Email (Optional)"
-              value={visitorEmailInput}
-              onChange={(e) => setVisitorEmailInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && visitorNameInput.trim()) {
-                  handleSaveVisitorName();
-                }
-              }}
-              style={{
-                width: "100%",
-                padding: "7px 10px",
-                borderRadius: themeConfig.inputRadius || "4px",
-                border: "1px solid rgba(0,0,0,0.2)",
-                fontSize: "12px",
-                outline: "none",
-                backgroundColor: "#fff",
-                color: "#111",
-                boxSizing: "border-box",
-              }}
-            />
+            <h3 style={{ margin: "0 0 6px 0", fontSize: "16px", fontWeight: 800, color: themeConfig.botBubbleColor || "#111" }}>
+              Welcome to {headerTitle}
+            </h3>
+            <p style={{ margin: 0, fontSize: "12px", color: "rgba(0,0,0,0.6)", lineHeight: 1.4 }}>
+              Introduce yourself to start chatting:
+            </p>
+          </div>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSaveVisitorName();
+            }}
+            style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%" }}
+          >
+            <div>
+              <label style={{ display: "block", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", marginBottom: "4px", color: themeConfig.botBubbleColor || "#111" }}>
+                Name <span style={{ opacity: 0.5, fontWeight: 500 }}>(Optional)</span>
+              </label>
+              <input
+                type="text"
+                placeholder="Your Name (Optional)"
+                value={visitorNameInput}
+                onChange={(e) => setVisitorNameInput(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "9px 12px",
+                  borderRadius: themeConfig.inputRadius || "4px",
+                  border: themeConfig.inputBorder || "1px solid rgba(0,0,0,0.2)",
+                  backgroundColor: themeConfig.inputBg || "#fff",
+                  color: themeConfig.inputColor || "#111",
+                  fontSize: "13px",
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: "block", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", marginBottom: "4px", color: themeConfig.botBubbleColor || "#111" }}>
+                Email <span style={{ opacity: 0.5, fontWeight: 500 }}>(Optional)</span>
+              </label>
+              <input
+                type="email"
+                placeholder="Your Email (Optional)"
+                value={visitorEmailInput}
+                onChange={(e) => setVisitorEmailInput(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "9px 12px",
+                  borderRadius: themeConfig.inputRadius || "4px",
+                  border: themeConfig.inputBorder || "1px solid rgba(0,0,0,0.2)",
+                  backgroundColor: themeConfig.inputBg || "#fff",
+                  color: themeConfig.inputColor || "#111",
+                  fontSize: "13px",
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+
             <button
-              type="button"
-              onClick={() => handleSaveVisitorName()}
-              disabled={!visitorNameInput.trim()}
+              type="submit"
               style={{
+                marginTop: "6px",
                 width: "100%",
-                padding: "8px 10px",
-                backgroundColor: themeConfig.buttonBg || "#111",
-                color: themeConfig.buttonColor || "#fff",
-                border: "none",
+                padding: "11px 16px",
+                backgroundColor: themeConfig.buttonBg || "#FF4D00",
+                color: themeConfig.buttonColor || "#FFFFFF",
+                border: themeConfig.buttonBorder || "none",
                 borderRadius: themeConfig.buttonRadius || "4px",
-                fontSize: "11px",
                 fontWeight: 800,
-                cursor: visitorNameInput.trim() ? "pointer" : "not-allowed",
-                opacity: visitorNameInput.trim() ? 1 : 0.6,
+                fontSize: "12px",
                 textTransform: "uppercase",
+                letterSpacing: "0.5px",
+                cursor: "pointer",
+                boxShadow: themeConfig.buttonShadow || "none",
+                transition: "opacity 0.15s ease",
               }}
             >
               Start Chat
             </button>
-          </div>
-        )}
+          </form>
+        </PreChatContainer>
+      ) : (
+        <>
+          {/* Messages Feed */}
+          <MessagesContainer ref={messagesContainerRef} $config={themeConfig}>
+            {messages.map((message, index) =>
+              message.role === "bot" ? (
+                <BotMessageWrapper key={index} $config={themeConfig}>
+                  <AvatarCircle $bg="rgba(0, 0, 0, 0.08)" $color={themeConfig.botBubbleColor || "#1a1a1a"}>
+                    {message.isError ? (
+                      <TbMessageCircleOff size={16} />
+                    ) : message.sender === "human_agent" ? (
+                      <RiCustomerService2Line size={16} />
+                    ) : (
+                      renderAvatar(16, themeConfig.botBubbleColor || "#1a1a1a")
+                    )}
+                  </AvatarCircle>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxWidth: "100%" }}>
+                    {message.sender === "human_agent" && (
+                      <SenderBadge>Live Support Agent</SenderBadge>
+                    )}
+                    <MessageBubble $config={themeConfig} role="bot">
+                      <FormattedMessage content={message.message} color={themeConfig.botBubbleColor} />
+                    </MessageBubble>
 
-        {showSuggestions && (
-          <SuggestionsContainer>
-            {suggestions.map((sugg, i) => (
-              <Suggestion key={i} $config={themeConfig} onClick={() => handleSuggestionClick(sugg)}>
-                {sugg}
-              </Suggestion>
-            ))}
-          </SuggestionsContainer>
-        )}
+                    {/* Promotional In-Chat Cards */}
+                    {message.promoType === "showcase" && (
+                      <PromoCard $config={themeConfig}>
+                        <PromoTitle><RiSparklingFill color="#eab308" /> Feature Showcase</PromoTitle>
+                        <PromoGrid>
+                          <PromoItem><FaBolt color="#3b82f6" /> Instant AI Answers</PromoItem>
+                          <PromoItem><FaLock color="#10b981" /> 24/7 Automation</PromoItem>
+                          <PromoItem><FaStar color="#f59e0b" /> High Accuracy</PromoItem>
+                        </PromoGrid>
+                      </PromoCard>
+                    )}
 
-        {loading && (
-          <BotMessageWrapper $config={themeConfig}>
-            <AvatarCircle $bg="rgba(0, 0, 0, 0.08)" $color={themeConfig.botBubbleColor || "#1a1a1a"}>
-              {renderAvatar(16, themeConfig.botBubbleColor || "#1a1a1a")}
-            </AvatarCircle>
-            <MessageBubble $config={themeConfig} role="bot">
-              Typing...
-            </MessageBubble>
-          </BotMessageWrapper>
-        )}
-        <div ref={messagesEndRef} />
-      </MessagesContainer>
+                    {message.promoType === "trust" && (
+                      <PromoCard $config={themeConfig}>
+                        <PromoTitle><RiShieldCheckLine color="#10b981" /> Enterprise Trust & Security</PromoTitle>
+                        <PromoGrid>
+                          <PromoItem>🛡️ 256-Bit SSL Encrypted</PromoItem>
+                          <PromoItem>⭐ Rated 4.9/5 by Clients</PromoItem>
+                          <PromoItem>👥 Zero-Config Widget</PromoItem>
+                        </PromoGrid>
+                      </PromoCard>
+                    )}
 
-      {/* Input Bar with Input, Voice Mic on Right, and Send */}
-      <ChatInputContainer $config={themeConfig}>
-        <ChatInput
-          $config={themeConfig}
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyPress={(e) => {
-            if (e.key === "Enter") handleSendMessage();
-          }}
-          placeholder={isRecording ? "Listening to your voice..." : isTranscribing ? "Transcribing speech..." : "Type a message..."}
-        />
-        <VoiceButton
-          $config={themeConfig}
-          title={isRecording ? "Recording voice... Click to convert" : isTranscribing ? "Transcribing voice with Whisper..." : "Voice Input (Whisper STT)"}
-          onClick={toggleRecording}
-          $isListening={isRecording}
-          type="button"
-          disabled={isTranscribing}
-        >
-          {isRecording ? <IoMicOff size={18} color="#ef4444" /> : <IoMic size={18} />}
-        </VoiceButton>
-        <SendButton $config={themeConfig} onClick={handleSendMessage} disabled={loading}>
-          <IoSend size={18} />
-        </SendButton>
-      </ChatInputContainer>
+                    {message.promoType === "payment" && (
+                      <PromoCard $config={themeConfig}>
+                        <PromoTitle><RiSecurePaymentLine color="#6366f1" /> Verified Payment Methods</PromoTitle>
+                        <PromoGrid>
+                          <PromoItem>💳 Visa & Mastercard</PromoItem>
+                          <PromoItem>💎 PayPal Checkout</PromoItem>
+                          <PromoItem>🔒 Stripe Protected</PromoItem>
+                        </PromoGrid>
+                      </PromoCard>
+                    )}
+                  </div>
+                </BotMessageWrapper>
+              ) : (
+                <UserMessageWrapper key={index} $config={themeConfig}>
+                  <MessageBubble $config={themeConfig} role="user">
+                    <FormattedMessage content={message.message} color={themeConfig.userBubbleColor} />
+                  </MessageBubble>
+                  <AvatarCircle
+                    $bg={themeConfig.userBubbleBg || "#007bff"}
+                    $color={themeConfig.userBubbleColor || "#ffffff"}
+                  >
+                    <TbUser size={16} />
+                  </AvatarCircle>
+                </UserMessageWrapper>
+              )
+            )}
+
+            {showSuggestions && (
+              <SuggestionsContainer>
+                {suggestions.map((sugg, i) => (
+                  <Suggestion key={i} $config={themeConfig} onClick={() => handleSuggestionClick(sugg)}>
+                    {sugg}
+                  </Suggestion>
+                ))}
+              </SuggestionsContainer>
+            )}
+
+            {loading && (
+              <BotMessageWrapper $config={themeConfig}>
+                <AvatarCircle $bg="rgba(0, 0, 0, 0.08)" $color={themeConfig.botBubbleColor || "#1a1a1a"}>
+                  {renderAvatar(16, themeConfig.botBubbleColor || "#1a1a1a")}
+                </AvatarCircle>
+                <MessageBubble $config={themeConfig} role="bot">
+                  Typing...
+                </MessageBubble>
+              </BotMessageWrapper>
+            )}
+            <div ref={messagesEndRef} />
+          </MessagesContainer>
+
+          {/* Input Bar with Input, Voice Mic on Right, and Send */}
+          <ChatInputContainer $config={themeConfig}>
+            <ChatInput
+              $config={themeConfig}
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === "Enter") handleSendMessage();
+              }}
+              placeholder={isRecording ? "Listening to your voice..." : isTranscribing ? "Transcribing speech..." : "Type a message..."}
+            />
+            <VoiceButton
+              $config={themeConfig}
+              title={isRecording ? "Recording voice... Click to convert" : isTranscribing ? "Transcribing voice with Whisper..." : "Voice Input (Whisper STT)"}
+              onClick={toggleRecording}
+              $isListening={isRecording}
+              type="button"
+              disabled={isTranscribing}
+            >
+              {isRecording ? <IoMicOff size={18} color="#ef4444" /> : <IoMic size={18} />}
+            </VoiceButton>
+            <SendButton $config={themeConfig} onClick={handleSendMessage} disabled={loading}>
+              <IoSend size={18} />
+            </SendButton>
+          </ChatInputContainer>
+        </>
+      )}
     </ChatbotContainer>
   );
 };
@@ -1115,6 +1121,19 @@ const SenderBadge = styled.span`
   text-transform: uppercase;
   color: #ea580c;
   letter-spacing: 0.05em;
+`;
+
+const PreChatContainer = styled.div<{ $config: ThemeConfig }>`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 28px 24px;
+  background-color: ${({ $config }) => $config.containerBg};
+  font-family: ${({ $config }) => $config.fontFamily};
+  box-sizing: border-box;
+  overflow-y: auto;
 `;
 
 const MessagesContainer = styled.div<{ $config: ThemeConfig }>`
