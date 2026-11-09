@@ -6,12 +6,14 @@ const generateSession = async ({
   phone,
   token,
   apiUrl,
+  visitorId,
 }: {
   email: string;
   username: string;
   phone?: string;
   token: string;
   apiUrl: string;
+  visitorId?: string;
 }) => {
   try {
     const response = await axios.post(`${apiUrl}/session/create`, {
@@ -19,6 +21,7 @@ const generateSession = async ({
       username,
       phone: phone || "",
       token,
+      visitorId: visitorId || undefined,
     });
 
     return response.data;

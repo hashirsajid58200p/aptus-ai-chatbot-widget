@@ -354,15 +354,30 @@ const Chatbot: React.FC<ChatbotProps> = ({
     }
   };
 
-  const createVisitorSession = async (name: string, email: string) => {
-    if (!token || !apiUrl) return;
+  const getVisitorId = (): string => {
     try {
+      let vid = localStorage.getItem("aptus_visitor_id");
+      if (!vid) {
+        vid = "v_" + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+        localStorage.setItem("aptus_visitor_id", vid);
+      }
+      return vid;
+    } catch (e) {
+      return "v_" + Date.now();
+    }
+  };
+
+  const createVisitorSession = async (name: string, email: string) => {
+    if (!token || !apiUrl) return null;
+    try {
+      const visitorId = getVisitorId();
       const response = await generateSession({
         email: email || "visitor@web.local",
         username: name || "Website Visitor",
         phone: "",
         token,
         apiUrl,
+        visitorId,
       });
 
       if (response?.session?._id) {
@@ -373,10 +388,23 @@ const Chatbot: React.FC<ChatbotProps> = ({
           phone: "",
           sessionId: response.session._id,
         });
+
+        // Resume past chat history if returning visitor has existing messages
+        if (response.session.messages && response.session.messages.length > 0) {
+          const loadedMsgs = response.session.messages.map((m: any) => ({
+            role: m.role || (m.sender === "user" ? "user" : "bot"),
+            message: m.message,
+            sender: m.sender || (m.role === "user" ? "user" : "ai"),
+          }));
+          setMessages(loadedMsgs);
+        }
+
+        return response.session._id;
       }
     } catch (err) {
       console.warn("Session init notice:", err);
     }
+    return null;
   };
 
   // Check saved visitor profile in localStorage on mount (asks only once)
@@ -636,6 +664,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
             phone: "",
             token,
             apiUrl,
+            visitorId: getVisitorId(),
           });
           activeSessionId = sessRes.session._id;
           setSession({
