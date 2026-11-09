@@ -13,6 +13,7 @@ import {
   RiSecurePaymentLine,
   RiSparklingFill,
   RiQuestionAnswerLine,
+  RiRefreshLine,
 } from "react-icons/ri";
 import { FaStar, FaBolt, FaLock, FaBrain, FaRobot } from "react-icons/fa";
 import { AiOutlineClose } from "react-icons/ai";
@@ -21,10 +22,9 @@ import { getThemeConfig, ThemeConfig } from "../theme";
 import { getContrastColor } from "../App";
 
 interface Message {
-  role: "user" | "bot";
+  role: "user" | "bot" | "chatbot";
   message: string;
   isError?: boolean;
-  promoType?: "showcase" | "trust" | "payment" | null;
   sender?: "user" | "ai" | "human_agent";
 }
 
@@ -389,16 +389,6 @@ const Chatbot: React.FC<ChatbotProps> = ({
           sessionId: response.session._id,
         });
 
-        // Resume past chat history if returning visitor has existing messages
-        if (response.session.messages && response.session.messages.length > 0) {
-          const loadedMsgs = response.session.messages.map((m: any) => ({
-            role: m.role || (m.sender === "user" ? "user" : "bot"),
-            message: m.message,
-            sender: m.sender || (m.role === "user" ? "user" : "ai"),
-          }));
-          setMessages(loadedMsgs);
-        }
-
         return response.session._id;
       }
     } catch (err) {
@@ -717,6 +707,21 @@ const Chatbot: React.FC<ChatbotProps> = ({
     }
   };
 
+  // Start a fresh new chat conversation
+  const handleNewChat = async () => {
+    setMessages([
+      {
+        role: "bot",
+        message: welcomeMessage || "Hello! How can I assist you today?",
+        sender: "ai",
+      },
+    ]);
+    const savedName = visitorNameInput.trim() || "Website Visitor";
+    const savedEmail = visitorEmailInput.trim() || "visitor@web.local";
+    await createVisitorSession(savedName, savedEmail);
+    scrollToBottom();
+  };
+
   // Request Live Agent
   const handleRequestHuman = async () => {
     if (session?.sessionId) {
@@ -857,6 +862,14 @@ const Chatbot: React.FC<ChatbotProps> = ({
         <HeaderControls>
           <HeaderIconButton
             $config={themeConfig}
+            title="Start Fresh New Chat"
+            onClick={handleNewChat}
+            style={{ color: themeConfig.headerColor }}
+          >
+            <RiRefreshLine size={16} />
+          </HeaderIconButton>
+          <HeaderIconButton
+            $config={themeConfig}
             title="Request Live Human Agent"
             onClick={handleRequestHuman}
             style={{ color: themeConfig.headerColor }}
@@ -984,7 +997,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
           {/* Messages Feed */}
           <MessagesContainer ref={messagesContainerRef} $config={themeConfig}>
             {messages.map((message, index) =>
-              message.role === "bot" ? (
+              message.role === "bot" || message.role === "chatbot" || message.sender === "ai" || message.sender === "human_agent" ? (
                 <BotMessageWrapper key={index} $config={themeConfig}>
                   <AvatarCircle $bg="rgba(0, 0, 0, 0.08)" $color={themeConfig.botBubbleColor || "#1a1a1a"}>
                     {message.isError ? (
@@ -1002,40 +1015,6 @@ const Chatbot: React.FC<ChatbotProps> = ({
                     <MessageBubble $config={themeConfig} role="bot">
                       <FormattedMessage content={message.message} color={themeConfig.botBubbleColor} />
                     </MessageBubble>
-
-                    {/* Promotional In-Chat Cards */}
-                    {message.promoType === "showcase" && (
-                      <PromoCard $config={themeConfig}>
-                        <PromoTitle><RiSparklingFill color="#eab308" /> Feature Showcase</PromoTitle>
-                        <PromoGrid>
-                          <PromoItem><FaBolt color="#3b82f6" /> Instant AI Answers</PromoItem>
-                          <PromoItem><FaLock color="#10b981" /> 24/7 Automation</PromoItem>
-                          <PromoItem><FaStar color="#f59e0b" /> High Accuracy</PromoItem>
-                        </PromoGrid>
-                      </PromoCard>
-                    )}
-
-                    {message.promoType === "trust" && (
-                      <PromoCard $config={themeConfig}>
-                        <PromoTitle><RiShieldCheckLine color="#10b981" /> Enterprise Trust & Security</PromoTitle>
-                        <PromoGrid>
-                          <PromoItem>🛡️ 256-Bit SSL Encrypted</PromoItem>
-                          <PromoItem>⭐ Rated 4.9/5 by Clients</PromoItem>
-                          <PromoItem>👥 Zero-Config Widget</PromoItem>
-                        </PromoGrid>
-                      </PromoCard>
-                    )}
-
-                    {message.promoType === "payment" && (
-                      <PromoCard $config={themeConfig}>
-                        <PromoTitle><RiSecurePaymentLine color="#6366f1" /> Verified Payment Methods</PromoTitle>
-                        <PromoGrid>
-                          <PromoItem>💳 Visa & Mastercard</PromoItem>
-                          <PromoItem>💎 PayPal Checkout</PromoItem>
-                          <PromoItem>🔒 Stripe Protected</PromoItem>
-                        </PromoGrid>
-                      </PromoCard>
-                    )}
                   </div>
                 </BotMessageWrapper>
               ) : (
@@ -1282,43 +1261,6 @@ const MessageBubble = styled.div<{ $config: ThemeConfig; role: "user" | "bot" }>
     border: ${$config.botBubbleBorder};
     box-shadow: ${$config.botBubbleShadow};
   `}
-`;
-
-// Promo Cards
-const PromoCard = styled.div<{ $config: ThemeConfig }>`
-  background: white;
-  border: ${({ $config }) => $config.botBubbleBorder || "2px solid #1a1a1a"};
-  box-shadow: ${({ $config }) => $config.botBubbleShadow || "2px 2px 0px #1a1a1a"};
-  border-radius: ${({ $config }) => $config.bubbleRadius || $config.wrapperRadius || "0px"};
-  padding: 10px 12px;
-  margin-top: 4px;
-  animation: aptusSlideUp 0.3s ease-out;
-`;
-
-const PromoTitle = styled.div`
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
-  color: #1a1a1a;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin-bottom: 6px;
-`;
-
-const PromoGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 4px;
-`;
-
-const PromoItem = styled.div`
-  font-size: 11px;
-  font-weight: 600;
-  color: #374151;
-  display: flex;
-  align-items: center;
-  gap: 6px;
 `;
 
 const SuggestionsContainer = styled.div`
