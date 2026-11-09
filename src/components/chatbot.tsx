@@ -278,6 +278,11 @@ const Chatbot: React.FC<ChatbotProps> = ({
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Visitor Onboarding States (Remember name and optional email in localStorage)
+  const [needsName, setNeedsName] = useState<boolean>(false);
+  const [visitorNameInput, setVisitorNameInput] = useState<string>("");
+  const [visitorEmailInput, setVisitorEmailInput] = useState<string>("");
+
   // Voice States (Real-time live streaming STT + Groq Whisper multilingual)
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -347,38 +352,72 @@ const Chatbot: React.FC<ChatbotProps> = ({
     }
   };
 
-  // Auto-initialize session on mount (Zero-Config, no blocking pre-chat form)
-  useEffect(() => {
-    const initAutoSession = async () => {
-      if (!session.started && token && apiUrl) {
-        try {
-          const response = await generateSession({
-            email: "visitor@web.local",
-            username: "Website Visitor",
-            phone: "",
-            token,
-            apiUrl,
-          });
+  const createVisitorSession = async (name: string, email: string) => {
+    if (!token || !apiUrl) return;
+    try {
+      const response = await generateSession({
+        email: email || "visitor@web.local",
+        username: name || "Website Visitor",
+        phone: "",
+        token,
+        apiUrl,
+      });
 
-          if (response?.session?._id) {
-            setSession({
-              started: true,
-              email: "visitor@web.local",
-              username: "Website Visitor",
-              phone: "",
-              sessionId: response.session._id,
-            });
-          }
-        } catch (err) {
-          console.warn("Session auto-init warning:", err);
-        }
+      if (response?.session?._id) {
+        setSession({
+          started: true,
+          email: email || "visitor@web.local",
+          username: name || "Website Visitor",
+          phone: "",
+          sessionId: response.session._id,
+        });
       }
-    };
+    } catch (err) {
+      console.warn("Session init notice:", err);
+    }
+  };
 
-    initAutoSession();
-  }, [token, apiUrl, session.started]);
+  // Check saved visitor profile in localStorage on mount (asks only once)
+  useEffect(() => {
+    let savedProfile: any = null;
+    try {
+      const stored = localStorage.getItem("aptus_visitor_profile");
+      if (stored) savedProfile = JSON.parse(stored);
+    } catch (e) {}
 
-  // Voice Input: Real-time speech recognition + Groq Whisper multilingual STT
+    if (savedProfile && savedProfile.name && savedProfile.name.trim()) {
+      setVisitorNameInput(savedProfile.name.trim());
+      setVisitorEmailInput(savedProfile.email ? savedProfile.email.trim() : "");
+      setNeedsName(false);
+      createVisitorSession(savedProfile.name.trim(), savedProfile.email || "visitor@web.local");
+    } else {
+      setNeedsName(true);
+    }
+  }, [token, apiUrl]);
+
+  const handleSaveVisitorName = async () => {
+    const cleanName = visitorNameInput.trim();
+    if (!cleanName) return;
+    const cleanEmail = visitorEmailInput.trim();
+    const profile = { name: cleanName, email: cleanEmail };
+    try {
+      localStorage.setItem("aptus_visitor_profile", JSON.stringify(profile));
+    } catch (e) {}
+    setNeedsName(false);
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "bot",
+        message: `Nice to meet you, ${cleanName}! How can I assist you today?`,
+        sender: "ai",
+      },
+    ]);
+
+    await createVisitorSession(cleanName, cleanEmail);
+  };
+
+  // Voice Input: Real-time speech recognition (word-by-word streaming) + Groq Whisper fallback
   const toggleRecording = async () => {
     if (isRecording) {
       stopAllAudio();
@@ -403,32 +442,43 @@ const Chatbot: React.FC<ChatbotProps> = ({
           const initialInput = input.trim();
 
           recognition.onresult = (event: any) => {
-            let liveTranscript = "";
+            let interimTranscript = "";
+            let finalTranscript = "";
             for (let i = 0; i < event.results.length; i++) {
-              liveTranscript += event.results[i][0].transcript;
+              const res = event.results[i];
+              if (res.isFinal) {
+                finalTranscript += res[0].transcript + " ";
+              } else {
+                interimTranscript += res[0].transcript;
+              }
             }
-            if (liveTranscript.trim()) {
+            const liveWords = (finalTranscript + interimTranscript).trim();
+            if (liveWords) {
               hasLiveTranscribedRef.current = true;
-              setInput(initialInput ? `${initialInput} ${liveTranscript.trim()}` : liveTranscript.trim());
+              setInput(initialInput ? `${initialInput} ${liveWords}` : liveWords);
             }
           };
 
           recognition.onerror = (e: any) => {
             console.warn("Live speech recognition notice:", e?.error);
+            setIsRecording(false);
           };
 
           recognition.onend = () => {
             recognitionRef.current = null;
+            setIsRecording(false);
           };
 
           recognition.start();
           recognitionRef.current = recognition;
+          setIsRecording(true);
+          return;
         } catch (recErr) {
-          console.warn("Real-time speech recognition could not start:", recErr);
+          console.warn("Real-time speech recognition could not start, falling back to audio recording:", recErr);
         }
       }
 
-      // 2. Concurrently start MediaRecorder for high-accuracy Groq Whisper multilingual transcription
+      // 2. Fallback to MediaRecorder + Whisper only if Web Speech is unavailable
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: {
@@ -522,16 +572,11 @@ const Chatbot: React.FC<ChatbotProps> = ({
           }
         };
 
-        // Collect audio chunks
         mediaRecorder.start(250);
         setIsRecording(true);
       } catch (err) {
-        console.error("Microphone access notice:", err);
-        if (recognitionRef.current) {
-          setIsRecording(true);
-        } else {
-          alert("Please allow microphone access to use voice typing.");
-        }
+        console.warn("Audio recording hardware notice:", err);
+        setIsRecording(false);
       }
     }
   };
@@ -568,12 +613,40 @@ const Chatbot: React.FC<ChatbotProps> = ({
       setLoading(true);
       scrollToBottom();
 
+      if (needsName) {
+        const cleanName = userMessage;
+        setNeedsName(false);
+        const profile = { name: cleanName, email: "" };
+        try {
+          localStorage.setItem("aptus_visitor_profile", JSON.stringify(profile));
+        } catch (e) {}
+        setMessages((prev) => [
+          ...prev,
+          { role: "bot", message: `Nice to meet you, ${cleanName}! How can I assist you today?`, sender: "ai" },
+        ]);
+        await createVisitorSession(cleanName, "visitor@web.local");
+        setLoading(false);
+        scrollToBottom();
+        return;
+      }
+
       try {
         let activeSessionId = session.sessionId;
         if (!activeSessionId) {
+          let savedName = "Website Visitor";
+          let savedEmail = "visitor@web.local";
+          try {
+            const stored = localStorage.getItem("aptus_visitor_profile");
+            if (stored) {
+              const p = JSON.parse(stored);
+              if (p?.name) savedName = p.name;
+              if (p?.email) savedEmail = p.email;
+            }
+          } catch (e) {}
+
           const sessRes = await generateSession({
-            email: "visitor@web.local",
-            username: "Website Visitor",
+            email: savedEmail,
+            username: savedName,
             phone: "",
             token,
             apiUrl,
@@ -581,8 +654,8 @@ const Chatbot: React.FC<ChatbotProps> = ({
           activeSessionId = sessRes.session._id;
           setSession({
             started: true,
-            email: "visitor@web.local",
-            username: "Website Visitor",
+            email: savedEmail,
+            username: savedName,
             phone: "",
             sessionId: activeSessionId,
           });
@@ -800,6 +873,91 @@ const Chatbot: React.FC<ChatbotProps> = ({
               </AvatarCircle>
             </UserMessageWrapper>
           )
+        )}
+
+        {needsName && (
+          <div
+            style={{
+              margin: "6px 0 12px 0",
+              padding: "12px 14px",
+              borderRadius: themeConfig.bubbleRadius || "8px",
+              backgroundColor: themeConfig.botBubbleBg || "#F3F4F6",
+              color: themeConfig.botBubbleColor || "#111827",
+              border: themeConfig.botBubbleBorder || "1px solid rgba(0,0,0,0.1)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px",
+              maxWidth: "92%",
+            }}
+          >
+            <div style={{ fontWeight: 800, fontSize: "11px", textTransform: "uppercase" }}>
+              Before we begin, please enter your name:
+            </div>
+            <input
+              type="text"
+              placeholder="Your Name (Required)"
+              value={visitorNameInput}
+              onChange={(e) => setVisitorNameInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && visitorNameInput.trim()) {
+                  handleSaveVisitorName();
+                }
+              }}
+              style={{
+                width: "100%",
+                padding: "7px 10px",
+                borderRadius: themeConfig.inputRadius || "4px",
+                border: "1px solid rgba(0,0,0,0.2)",
+                fontSize: "12px",
+                outline: "none",
+                backgroundColor: "#fff",
+                color: "#111",
+                boxSizing: "border-box",
+              }}
+            />
+            <input
+              type="email"
+              placeholder="Your Email (Optional)"
+              value={visitorEmailInput}
+              onChange={(e) => setVisitorEmailInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && visitorNameInput.trim()) {
+                  handleSaveVisitorName();
+                }
+              }}
+              style={{
+                width: "100%",
+                padding: "7px 10px",
+                borderRadius: themeConfig.inputRadius || "4px",
+                border: "1px solid rgba(0,0,0,0.2)",
+                fontSize: "12px",
+                outline: "none",
+                backgroundColor: "#fff",
+                color: "#111",
+                boxSizing: "border-box",
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => handleSaveVisitorName()}
+              disabled={!visitorNameInput.trim()}
+              style={{
+                width: "100%",
+                padding: "8px 10px",
+                backgroundColor: themeConfig.buttonBg || "#111",
+                color: themeConfig.buttonColor || "#fff",
+                border: "none",
+                borderRadius: themeConfig.buttonRadius || "4px",
+                fontSize: "11px",
+                fontWeight: 800,
+                cursor: visitorNameInput.trim() ? "pointer" : "not-allowed",
+                opacity: visitorNameInput.trim() ? 1 : 0.6,
+                textTransform: "uppercase",
+              }}
+            >
+              Start Chat
+            </button>
+          </div>
         )}
 
         {showSuggestions && (
