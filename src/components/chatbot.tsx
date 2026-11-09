@@ -3,16 +3,18 @@ import generateSession from "../utils/generateSession";
 import axios from "axios";
 import styled from "styled-components";
 import { IoSend, IoMic, IoMicOff } from "react-icons/io5";
-import { TbUser, TbMessageCircleOff, TbMessageChatbot, TbUserHeart } from "react-icons/tb";
+import { TbUser, TbMessageCircleOff, TbMessageChatbot, TbUserHeart, TbRobot, TbRobotFace } from "react-icons/tb";
 import {
   RiRobot2Line,
+  RiRobot3Line,
+  RiRobotLine,
   RiCustomerService2Line,
   RiShieldCheckLine,
   RiSecurePaymentLine,
   RiSparklingFill,
   RiQuestionAnswerLine,
 } from "react-icons/ri";
-import { FaStar, FaBolt, FaLock, FaBrain } from "react-icons/fa";
+import { FaStar, FaBolt, FaLock, FaBrain, FaRobot } from "react-icons/fa";
 import { AiOutlineClose } from "react-icons/ai";
 import generateSugesstions from "../utils/generateSuggestions";
 import { getThemeConfig, ThemeConfig } from "../theme";
@@ -736,6 +738,12 @@ const Chatbot: React.FC<ChatbotProps> = ({
     if (!chatbotAvatar || chatbotAvatar === "bot" || chatbotAvatar === "default") {
       return <RiRobot2Line size={size} color={color} />;
     }
+    if (chatbotAvatar === "cyber") return <FaRobot size={size} color={color} />;
+    if (chatbotAvatar === "android") return <TbRobot size={size} color={color} />;
+    if (chatbotAvatar === "mecha") return <TbRobotFace size={size} color={color} />;
+    if (chatbotAvatar === "friendly") return <RiRobot2Line size={size} color={color} />;
+    if (chatbotAvatar === "futuristic") return <RiRobot3Line size={size} color={color} />;
+    if (chatbotAvatar === "smart") return <RiRobotLine size={size} color={color} />;
     if (chatbotAvatar === "sparkles" || chatbotAvatar === "spark") return <RiSparklingFill size={size} color={color} />;
     if (chatbotAvatar === "chat" || chatbotAvatar === "message") return <TbMessageChatbot size={size} color={color} />;
     if (chatbotAvatar === "agent" || chatbotAvatar === "support") return <RiCustomerService2Line size={size} color={color} />;

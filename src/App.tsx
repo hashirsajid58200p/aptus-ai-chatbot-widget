@@ -1,7 +1,8 @@
 import React, { ReactNode, useEffect, useState } from 'react';
 import { AiOutlineWarning } from 'react-icons/ai';
-import { TbMessageChatbot, TbUserHeart } from 'react-icons/tb';
-import { RiRobot2Line, RiSparklingFill, RiCustomerService2Line, RiShieldCheckLine, RiQuestionAnswerLine } from 'react-icons/ri';
+import { TbMessageChatbot, TbUserHeart, TbRobot, TbRobotFace } from 'react-icons/tb';
+import { RiRobot2Line, RiRobot3Line, RiRobotLine, RiSparklingFill, RiCustomerService2Line, RiShieldCheckLine, RiQuestionAnswerLine } from 'react-icons/ri';
+import { FaRobot } from 'react-icons/fa';
 import styled from 'styled-components';
 import Chatbot from './components/chatbot';
 import getChatbotDetails from './utils/getChatbotDetails';
@@ -81,6 +82,12 @@ export function renderAvatarIcon(avatar?: string | ReactNode, size = 28, color?:
   if (!avatar || avatar === 'bot' || avatar === 'default') {
     return <RiRobot2Line size={size} color={color} />;
   }
+  if (avatar === 'cyber') return <FaRobot size={size} color={color} />;
+  if (avatar === 'android') return <TbRobot size={size} color={color} />;
+  if (avatar === 'mecha') return <TbRobotFace size={size} color={color} />;
+  if (avatar === 'friendly') return <RiRobot2Line size={size} color={color} />;
+  if (avatar === 'futuristic') return <RiRobot3Line size={size} color={color} />;
+  if (avatar === 'smart') return <RiRobotLine size={size} color={color} />;
   if (avatar === 'sparkles' || avatar === 'spark') return <RiSparklingFill size={size} color={color} />;
   if (avatar === 'chat' || avatar === 'message') return <TbMessageChatbot size={size} color={color} />;
   if (avatar === 'agent' || avatar === 'support') return <RiCustomerService2Line size={size} color={color} />;
