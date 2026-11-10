@@ -351,12 +351,23 @@ const App: React.FC<AppProps> = ({
     }
   }, [activeToken, activeApiUrl]);
 
+  useEffect(() => {
+    if (activeToken && !chatbotDetails) {
+      try {
+        const cached = localStorage.getItem(`aptus_config_${activeToken}`);
+        if (cached) {
+          setChatbotDetails(JSON.parse(cached));
+        }
+      } catch (e) {}
+    }
+  }, [activeToken]);
+
   // Config is ready if developer passed explicit props OR if details are available (from cache or server)
-  const isConfigReady = Boolean(propTheme || propPrimaryColor || chatbotDetails);
+  const isConfigReady = Boolean(propTheme || propPrimaryColor || chatbotDetails || errorMessage);
 
   return (
     <AppContainer $fontFamily={themeConfig.fontFamily}>
-      {!show && (
+      {!show && isConfigReady && (
         <ChatbotToggleButton
           $position={position}
           $config={themeConfig}
@@ -364,9 +375,6 @@ const App: React.FC<AppProps> = ({
           style={{
             backgroundColor: toggleBtnBgColor || themeConfig.toggleBg,
             color: toggleBtncolor || themeConfig.toggleColor,
-            opacity: isConfigReady ? 1 : 0,
-            pointerEvents: isConfigReady ? 'auto' : 'none',
-            transition: 'opacity 0.2s ease-in, transform 0.15s ease-in-out',
           }}
           onClick={() => setShow(true)}
         >
