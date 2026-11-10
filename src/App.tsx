@@ -275,7 +275,7 @@ const App: React.FC<AppProps> = ({
   const effectiveTheme = propTheme || chatbotDetails?.theme || 'aptus';
   const effectivePrimaryColor = propPrimaryColor || chatbotDetails?.primaryColor;
   const effectiveTextColor = propTextColor || chatbotDetails?.textColor;
-  const effectiveBorderRadius = propBorderRadius || chatbotDetails?.borderRadius;
+  const effectiveBorderRadius = propBorderRadius || (chatbotDetails?.borderRadius && chatbotDetails.borderRadius !== 'default' ? chatbotDetails.borderRadius : undefined);
   const effectiveBotName = propBotName || chatbotDetails?.botName || chatbotDetails?.bussinessName || 'Aptus AI';
   const effectiveWelcomeMessage = propWelcomeMessage || chatbotDetails?.welcomeMessage;
   const effectiveAvatar = propChatbotAvatar || chatbotDetails?.chatbotAvatar || cachedAvatar || 'chat';

@@ -1379,7 +1379,7 @@ const HeaderIconButton = styled.button<{ $config?: ThemeConfig; $active?: boolea
   background: ${({ $active }) => ($active ? "rgba(255, 255, 255, 0.3)" : "rgba(255, 255, 255, 0.15)")};
   border: 1px solid rgba(255, 255, 255, 0.35);
   color: inherit;
-  border-radius: ${({ $config }) => ($config?.buttonRadius !== undefined ? $config.buttonRadius : "0px")};
+  border-radius: ${({ $config }) => ($config?.buttonRadius || "4px")};
   width: 32px;
   height: 32px;
   display: flex;
@@ -1534,7 +1534,7 @@ const VoiceButton = styled.button<{ $config: ThemeConfig; $isListening: boolean 
   background-color: ${({ $isListening, $config }) => ($isListening ? "#fee2e2" : $config.inputBg || "#ffffff")};
   border: ${({ $isListening, $config }) => ($isListening ? "2px solid #ef4444" : $config.inputBorder || "1px solid #1a1a1a")};
   color: ${({ $isListening, $config }) => ($isListening ? "#ef4444" : $config.inputColor || "#1a1a1a")};
-  border-radius: ${({ $config }) => ($config.buttonRadius !== undefined ? $config.buttonRadius : "0px")};
+  border-radius: ${({ $config }) => ($config.buttonRadius || "4px")};
   box-shadow: ${({ $config }) => ($config.buttonShadow ? $config.buttonShadow : "none")};
   width: 38px;
   height: 38px;
@@ -1564,7 +1564,7 @@ const ChatInput = styled.input<{ $config: ThemeConfig }>`
   background-color: ${({ $config }) => $config.inputBg || "#ffffff"};
   color: ${({ $config }) => $config.inputColor || "#111827"};
   border: ${({ $config }) => $config.inputBorder || "1px solid #1a1a1a"};
-  border-radius: ${({ $config }) => ($config.inputRadius !== undefined ? $config.inputRadius : "0px")};
+  border-radius: ${({ $config }) => ($config.inputRadius || "4px")};
   outline: none;
 
   &:focus {
@@ -1576,7 +1576,7 @@ const SendButton = styled.button<{ $config: ThemeConfig }>`
   background-color: ${({ $config }) => $config.buttonBg};
   color: ${({ $config }) => $config.buttonColor};
   border: ${({ $config }) => $config.buttonBorder || "none"};
-  border-radius: ${({ $config }) => ($config.buttonRadius !== undefined ? $config.buttonRadius : "0px")};
+  border-radius: ${({ $config }) => ($config.buttonRadius || "4px")};
   box-shadow: ${({ $config }) => $config.buttonShadow || "none"};
   width: 38px;
   height: 38px;

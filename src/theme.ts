@@ -598,12 +598,14 @@ export function getThemeConfig(
   const finalFontFamily = customFontFamily || baseConfig.fontFamily;
   loadGoogleFont(finalFontFamily);
 
-  // Format radius strings
-  const formattedRadius = customRadius !== undefined
+  // Format radius strings - treat empty string, null, or 'default' as undefined so baseConfig theme defaults are used
+  const hasCustomRadius = customRadius !== undefined && customRadius !== null && customRadius !== '' && customRadius !== 'default';
+  const formattedRadius = hasCustomRadius
     ? typeof customRadius === 'number' ? `${customRadius}px` : customRadius
     : undefined;
 
-  const formattedToggleRadius = customToggleRadius !== undefined
+  const hasCustomToggleRadius = customToggleRadius !== undefined && customToggleRadius !== null && customToggleRadius !== '' && customToggleRadius !== 'default';
+  const formattedToggleRadius = hasCustomToggleRadius
     ? typeof customToggleRadius === 'number' ? `${customToggleRadius}px` : customToggleRadius
     : undefined;
 
