@@ -556,10 +556,17 @@ const Chatbot: React.FC<ChatbotProps> = ({
     themeConfig.buttonBg = primaryColor;
     themeConfig.userBubbleBg = primaryColor;
   }
-  if (textColor) {
-    themeConfig.headerColor = textColor;
-  } else if (primaryColor && primaryColor !== 'default') {
-    themeConfig.headerColor = getContrastColor(primaryColor);
+  const effectiveCustomText = textColor || (primaryColor && primaryColor !== 'default' ? getContrastColor(primaryColor) : null);
+  if (effectiveCustomText) {
+    themeConfig.headerColor = effectiveCustomText;
+    themeConfig.userBubbleColor = effectiveCustomText;
+    themeConfig.buttonColor = effectiveCustomText;
+    themeConfig.toggleColor = effectiveCustomText;
+  } else {
+    themeConfig.userBubbleColor = themeConfig.userBubbleColor || getContrastColor(themeConfig.userBubbleBg);
+    themeConfig.headerColor = themeConfig.headerColor || getContrastColor(themeConfig.headerBg);
+    themeConfig.buttonColor = themeConfig.buttonColor || getContrastColor(themeConfig.buttonBg);
+    themeConfig.toggleColor = themeConfig.toggleColor || getContrastColor(themeConfig.toggleBg);
   }
 
   const scrollToBottom = () => {

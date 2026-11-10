@@ -297,6 +297,9 @@ const App: React.FC<AppProps> = ({
   // If textColor is customized
   if (effectiveTextColor) {
     themeConfig.headerColor = effectiveTextColor;
+    themeConfig.userBubbleColor = effectiveTextColor;
+    themeConfig.buttonColor = effectiveTextColor;
+    themeConfig.toggleColor = effectiveTextColor;
   } else {
     themeConfig.headerColor = getContrastColor(themeConfig.headerBg);
   }
