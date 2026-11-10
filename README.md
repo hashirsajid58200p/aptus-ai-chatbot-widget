@@ -1,69 +1,86 @@
 # Aptus AI Chatbot Widget (`aptus-ai-chatbot-widget`)
 
-A highly customizable, themeable, secure, and responsive React AI chatbot widget component (`aptus-ai-chatbot-widget`). It enables business owners to easily drop a state-of-the-art AI-driven chatbot widget onto their website by passing a token and API backend endpoint.
+[![npm version](https://img.shields.io/npm/v/aptus-ai-chatbot-widget.svg?style=flat-square&color=FF4D00)](https://www.npmjs.com/package/aptus-ai-chatbot-widget)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+
+A customizable, themeable, secure, and responsive React AI chatbot widget (`aptus-ai-chatbot-widget`). Drop a high-performance, grounded AI customer support agent onto any website by passing your unique business token and API endpoint.
+
+---
+
+## ✨ Key Capabilities
+
+- **Zero-Config Remote Synchronization**: Bot name, theme, custom colors, avatars, and greetings auto-sync directly from your Aptus AI dashboard portal.
+- **Full GitHub Flavored Markdown (GFM)**: Bot responses render formatted headings, code blocks with syntax languages, multi-column tables, task lists, blockquotes, bold, italics, and links.
+- **Real-Time Streaming Voice AI**: Hands-free voice recognition with live interim results via the browser Web Speech API paired with Groq Whisper Large v3 Turbo server-side fallback.
+- **Live Human Agent Takeover**: Switch seamlessly between automated AI grounding and live support agents in real time.
+- **Zero Hallucination Grounding**: Answers queries strictly from your verified business FAQs and Markdown documentation.
+- **Origin Domain Security**: Token verification and domain whitelisting to protect against unauthorized scraping and hotlinking.
 
 ---
 
 ## 📦 Installation
 
 ```bash
+# Using npm
 npm install aptus-ai-chatbot-widget
-```
 
-Or using yarn / pnpm:
-
-```bash
-yarn add aptus-ai-chatbot-widget
-# or
+# Using pnpm
 pnpm add aptus-ai-chatbot-widget
+
+# Using yarn
+yarn add aptus-ai-chatbot-widget
 ```
 
 ---
 
-## 🚀 Quickstart Usage
+## 🚀 Quick Start (React / Next.js)
 
 ```jsx
 import React from 'react';
 import { ChatBot } from 'aptus-ai-chatbot-widget';
 
-function App() {
+export default function Layout({ children }) {
   return (
     <div>
+      {children}
+
       <ChatBot 
         token="YOUR_BUSINESS_TOKEN" 
-        apiUrl="https://api.yourdomain.com/api/v1"
+        apiUrl="https://your-api-domain.com/api/v1"
         theme="aptus"
         wantToShowSuggestions={true}
       />
     </div>
   );
 }
+```
 
-export default App;
+### Standalone HTML / CMS Embedding (Shopify, WordPress, Webflow)
+
+```html
+<!-- Paste before closing </body> tag -->
+<script
+  src="https://unpkg.com/aptus-ai-chatbot-widget@1.0.12/dist/index.js"
+  data-token="YOUR_BUSINESS_TOKEN"
+  data-api-url="https://your-api-domain.com/api/v1"
+  defer>
+</script>
 ```
 
 ---
 
-## 🎨 14 Built-in Theme Presets (`theme` prop)
+## 🎨 Built-in Theme Presets (`theme` prop)
 
-Pass any of the following 14 built-in theme presets into the `theme` prop:
+Pass any theme preset into the `theme` prop to match your visual aesthetic:
 
-| Theme Name | Design Style & Colors | Signature Default Shape | Target Use-Case |
-|------------|-----------------------|-------------------------|-----------------|
-| `"aptus"` *(Default)* | **Aptus Official Signature**: Burnt Orange (`#FF4D00`), Cream (`#FDF9F0`), 3px dark borders & hard shadows | Sharp 4px Retro Box | AI SaaS, Neo-Brutalist & Retro websites |
-| `"boty"` | **Natural E-Commerce**: Warm Beige, Olive Green (`#4F5B3A`), Sand | Soft 20px Organic Bubble | Skincare, E-Commerce, Organic Products |
-| `"chatgpt"` | **Minimalist Dark Mode**: Dark Slate (`#212121`), Emerald Green (`#10A37F`) | Clean 12px Rounded Card | AI Platforms, Minimalist Tech Apps |
-| `"compute"` | **Cyber Terminal AI**: Pitch Black (`#0C0E12`), Cyber Blue (`#38BDF8`), JetBrains Mono | 4px Tech Code Window | Cloud Infrastructure, Developer Tools |
-| `"crosshaven"` | **Corporate Slate Navy**: Slate Navy (`#0F172A`), Cobalt Blue (`#2563EB`) | Corporate 10px Slate Card | Agencies, Financial, Legal & Consulting |
-| `"studio"` | **Modern Design Studio**: Pitch Dark (`#0A0A0A`), Electric Yellow (`#FFD600`) | Sharp 6px Studio Window | Creative Agencies, Design Software |
-| `"energy"` | **Gen-Z Neon Energy**: Acid Lime (`#A3E635`), Hot Magenta (`#EC4899`), Deep Purple | Ultra 24px Bubble Card | Youth Brands, Media, Fitness & Drinks |
-| `"smarthome"` | **Clean Soft Cyan**: Ice Blue (`#F0F9FF`), Sky Cyan (`#0EA5E9`) | Soft 16px Ambient Card | Smart Home, IoT, Health & Wellness |
-| `"superdesign"` | **Creative Purple Violet**: Deep Violet (`#4C1D95`), Purple (`#8B5CF6`) | Creative 14px Card | SaaS Apps, Creative Tools |
-| `"professional"` | **Classic Business Light**: Royal Blue (`#1D4ED8`), Crisp White | Standard 8px Business UI | Corporate Sites, Customer Support |
-| `"github"` | **GitHub Dark Mode**: Dark Slate (`#0D1117`), GitHub Green (`#238636`) | Standard 6px GitHub Card | Open-Source & Developer projects |
-| `"dracula"` | **Dracula Theme**: Dracula Dark (`#282A36`), Pink (`#FF79C6`), Purple (`#BD93F9`) | IDE 10px Card | Developer Portfolios, Coding Apps |
-| `"nord"` | **Nord Arctic Frost**: Polar Night (`#2E3440`), Frost Cyan (`#88C0D0`), Frost Blue | Nordic 8px Frost Card | Clean Modern SaaS & Technical Tools |
-| `"cyberpunk"` | **Cyberpunk 2077 Neon**: Cyber Yellow (`#FCEE09`), Cyan (`#00F0FF`), Neon Pink | 100% Sharp 0px Edges | Gaming, Crypto & Futuristic Brands |
+| Theme Name | Design Style | Target Use-Case |
+|------------|--------------|-----------------|
+| `"aptus"` *(Default)* | Neo-Brutalist: Burnt Orange (`#FF4D00`), Cream (`#FDF9F0`), 3px dark borders & hard shadows | AI SaaS, Neo-Brutalist & Tech brands |
+| `"boty"` | Natural & Organic: Warm Beige, Forest Green (`#4F5B3A`), Sand | Skincare, Wellness, E-Commerce |
+| `"chatgpt"` | Clean Charcoal Dark Mode (`#212121`), Emerald Green (`#10A37F`) | SaaS, Minimalist Developer Platforms |
+| `"compute"` | Cyber Terminal: Monospace font, Jet Black (`#0C0E12`), Electric Blue | Cloud Infrastructure, Developer Tools |
+| `"crosshaven"` | Corporate Slate Navy (`#0F172A`), Cobalt Blue (`#2563EB`) | B2B, Finance, Legal, Consulting |
+| `"cyberpunk"` | Cyber Yellow (`#FCEE09`), Cyan (`#00F0FF`), Neon Pink | Gaming, Web3, Creative Studios |
 
 ---
 
@@ -71,29 +88,28 @@ Pass any of the following 14 built-in theme presets into the `theme` prop:
 
 | Prop Name | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `token` | `string` | **(Required)** | The unique business authentication token. |
-| `apiUrl` | `string` | **(Required)** | The backend API endpoint URL for processing chat sessions and messages. |
-| `theme` | `string` | `"aptus"` | Select one of the 14 built-in theme presets listed above. |
-| `borderRadius` | `string` \| `number` | *Theme Default* | Custom border radius for the window, input boxes, and message bubbles (e.g., `'16px'` or `12`). |
-| `toggleBtnRadius` | `string` \| `number` | *Theme Default* | Custom border radius for the floating launcher toggle button (e.g., `'50%'` or `'8px'`). |
+| `token` | `string` | **(Required)** | Unique business authentication token from your dashboard. |
+| `apiUrl` | `string` | **(Required)** | Backend API endpoint URL for processing chat sessions and messages. |
+| `theme` | `string` | `"aptus"` | Select one of the built-in theme presets. |
+| `botName` | `string` | *Dashboard* | Custom chatbot display name in the header. |
+| `welcomeMessage` | `string` | *Dashboard* | Initial greeting bubble displayed on launch. |
+| `position` | `'left'` \| `'right'` | `'right'` | Floating widget placement on the screen. |
+| `borderRadius` | `string` \| `number` | *Theme Default* | Custom border radius for window, input, and bubbles (e.g., `'0px'`, `'12px'`, `'24px'`). |
+| `toggleBtnRadius` | `string` \| `number` | *Theme Default* | Custom border radius for the floating launcher button. |
 | `toggleBtnColor` | `string` | *Theme Default* | Custom icon color of the floating launcher button. |
 | `toggleBtnBgColor` | `string` | *Theme Default* | Custom background color of the floating launcher button. |
-| `fontFamily` | `string` | *Theme Default* | Custom font-family applied specifically to the ChatBot widget UI. |
-| `icon` | `ReactNode` | `LauncherIcon` | Custom icon for the closed floating button state. |
-| `position` | `'left'` \| `'right'` | `'right'` | Floating widget placement on the viewport. |
-| `animate` | `boolean` | `true` | Enables subtle bounce animation on the closed launcher button. |
-| `wantToShowSuggestions` | `boolean` | `false` | Displays dynamic AI suggestion chips when the chatbot detects ambiguous queries. |
+| `wantToShowSuggestions` | `boolean` | `false` | Displays clickable FAQ suggestion chips. |
 
 ---
 
-## 🔒 Security & Privacy Compliance
+## 🔒 Security & Privacy
 
-- **No Remote Telemetry**: All session details, customer inputs, and chat history are transmitted exclusively to the specified `apiUrl` endpoint. No telemetry is collected by third parties.
-- **Token Verification**: Every API interaction validates the business token.
-- **Isolated Package Footprint**: Inlined single-color vector SVGs without loose raster assets for fast loading and zero asset-resolution failures.
+- **Direct Secure Transmission**: All session details and messages travel exclusively between your website and your configured `apiUrl`. No third-party data collection.
+- **Domain Whitelisting**: Set allowed origins in your dashboard to prevent unauthorized hotlinking.
+- **Zero Asset Dependencies**: Single-color inline vector SVGs without loose image dependencies for 100% reliable icon rendering.
 
 ---
 
 ## 📄 License
 
-Distributed under the **MIT License**. See `LICENSE` for details.
+Distributed under the **MIT License**.
