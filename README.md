@@ -79,8 +79,16 @@ Pass any theme preset into the `theme` prop to match your visual aesthetic:
 | `"boty"` | Natural & Organic: Warm Beige, Forest Green (`#4F5B3A`), Sand | Skincare, Wellness, E-Commerce |
 | `"chatgpt"` | Clean Charcoal Dark Mode (`#212121`), Emerald Green (`#10A37F`) | SaaS, Minimalist Developer Platforms |
 | `"compute"` | Cyber Terminal: Monospace font, Jet Black (`#0C0E12`), Electric Blue | Cloud Infrastructure, Developer Tools |
-| `"crosshaven"` | Corporate Slate Navy (`#0F172A`), Cobalt Blue (`#2563EB`) | B2B, Finance, Legal, Consulting |
-| `"cyberpunk"` | Cyber Yellow (`#FCEE09`), Cyan (`#00F0FF`), Neon Pink | Gaming, Web3, Creative Studios |
+| `"crosshaven"` | Editorial Luxury: Refined navy slate and clean royal blue contrast (`#2563EB`) | B2B, Finance, Legal, Consulting |
+| `"studio"` | Dark Studio: Monochrome obsidian with electric yellow (`#FFD600`) | Audio, Media, Creative Studios |
+| `"energy"` | Neon Energy: Vibrant violet and high-impact lime punch (`#A3E635`) | Fitness, Sports, Dynamic Startups |
+| `"smarthome"` | Emerald Cyan: Soft aqua cyan with modern smooth curves (`#0EA5E9`) | IoT, Smart Living, Health |
+| `"superdesign"` | Pastel Violet: Deep violet header with soft purple canvas (`#8B5CF6`) | Design Agencies, Portfolios |
+| `"professional"` | Corporate Blue: Enterprise royal blue and crisp white card (`#1D4ED8`) | Enterprise, HR, Healthcare |
+| `"github"` | GitHub Dimmed: Developer-focused dark slate theme (`#30363D`) | Open Source, Dev Portals |
+| `"dracula"` | Dracula Purple: Classic dark purple syntax aesthetic (`#BD93F9`) | Developer Tools, Tech Blogs |
+| `"nord"` | Nordic Frost: Arctic cold ice blue with muted dark grays (`#88C0D0`) | Scandinavian, Clean Tech, SaaS |
+| `"cyberpunk"` | High-voltage neon yellow (`#FCEE09`), Cyan, sharp edges | Web3, Gaming, Interactive Brands |
 
 ---
 
