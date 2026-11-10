@@ -638,7 +638,10 @@ const Chatbot: React.FC<ChatbotProps> = ({
   }, [token, apiUrl]);
 
   const handleSaveVisitorName = async () => {
-    const cleanName = visitorNameInput.trim() || "Website Visitor";
+    const cleanName = visitorNameInput.trim();
+    if (!cleanName) {
+      return;
+    }
     const cleanEmail = visitorEmailInput.trim() || "visitor@web.local";
     const profile = { name: cleanName, email: cleanEmail };
     try {
@@ -646,16 +649,14 @@ const Chatbot: React.FC<ChatbotProps> = ({
     } catch (e) {}
     setNeedsName(false);
 
-    if (cleanName !== "Website Visitor") {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "bot",
-          message: `Nice to meet you, ${cleanName}! How can I assist you today?`,
-          sender: "ai",
-        },
-      ]);
-    }
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "bot",
+        message: `Nice to meet you, ${cleanName}! How can I assist you today?`,
+        sender: "ai",
+      },
+    ]);
 
     await createVisitorSession(cleanName, cleanEmail);
   };
@@ -1156,11 +1157,12 @@ const Chatbot: React.FC<ChatbotProps> = ({
           >
             <div>
               <label style={{ display: "block", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", marginBottom: "4px", color: themeConfig.botBubbleColor || "#111" }}>
-                Name <span style={{ opacity: 0.5, fontWeight: 500 }}>(Optional)</span>
+                Name <span style={{ color: themeConfig.buttonBg || "#FF4D00", fontWeight: 800 }}>*</span>
               </label>
               <input
                 type="text"
-                placeholder="Your Name (Optional)"
+                placeholder="Enter your name"
+                required
                 value={visitorNameInput}
                 onChange={(e) => setVisitorNameInput(e.target.value)}
                 style={{
