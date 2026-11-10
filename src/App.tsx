@@ -245,11 +245,31 @@ const App: React.FC<AppProps> = ({
   welcomeMessage: propWelcomeMessage,
   botName: propBotName,
 }) => {
+  // Auto-read token from props, or environment variable, or window global
+  const activeToken =
+    propToken ||
+    (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_APTUS_TOKEN) ||
+    (typeof window !== 'undefined' && (window as any).APTUS_CHATBOT_TOKEN) ||
+    '';
+
   const [show, setShow] = useState(false);
-  const [chatbotDetails, setChatbotDetails] = useState<ChatbotDetails | null>(null);
+  
+  // Initialize chatbotDetails from localStorage cache to completely eliminate flash of default theme (FOUT)
+  const [chatbotDetails, setChatbotDetails] = useState<ChatbotDetails | null>(() => {
+    try {
+      if (typeof window !== "undefined" && activeToken) {
+        const cached = localStorage.getItem(`aptus_config_${activeToken}`);
+        if (cached) {
+          return JSON.parse(cached);
+        }
+      }
+    } catch (e) {}
+    return null;
+  });
+
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Cached avatar from localStorage to eliminate flicker on page refresh
+  // Cached avatar from localStorage to eliminate avatar flicker
   const [cachedAvatar, setCachedAvatar] = useState<string>(() => {
     try {
       if (typeof window !== "undefined") {
@@ -258,13 +278,6 @@ const App: React.FC<AppProps> = ({
     } catch (e) {}
     return "chat";
   });
-
-  // Auto-read token from props, or environment variable, or window global
-  const activeToken =
-    propToken ||
-    (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_APTUS_TOKEN) ||
-    (typeof window !== 'undefined' && (window as any).APTUS_CHATBOT_TOKEN) ||
-    '';
 
   const activeApiUrl =
     propApiUrl ||
@@ -315,6 +328,9 @@ const App: React.FC<AppProps> = ({
         const details = await getChatbotDetails(activeToken, activeApiUrl);
         if (details) {
           setChatbotDetails(details);
+          try {
+            localStorage.setItem(`aptus_config_${activeToken}`, JSON.stringify(details));
+          } catch (e) {}
           if (details.chatbotAvatar) {
             setCachedAvatar(details.chatbotAvatar);
             try {
@@ -335,6 +351,9 @@ const App: React.FC<AppProps> = ({
     }
   }, [activeToken, activeApiUrl]);
 
+  // Config is ready if developer passed explicit props OR if details are available (from cache or server)
+  const isConfigReady = Boolean(propTheme || propPrimaryColor || chatbotDetails);
+
   return (
     <AppContainer $fontFamily={themeConfig.fontFamily}>
       {!show && (
@@ -345,6 +364,9 @@ const App: React.FC<AppProps> = ({
           style={{
             backgroundColor: toggleBtnBgColor || themeConfig.toggleBg,
             color: toggleBtncolor || themeConfig.toggleColor,
+            opacity: isConfigReady ? 1 : 0,
+            pointerEvents: isConfigReady ? 'auto' : 'none',
+            transition: 'opacity 0.2s ease-in, transform 0.15s ease-in-out',
           }}
           onClick={() => setShow(true)}
         >
