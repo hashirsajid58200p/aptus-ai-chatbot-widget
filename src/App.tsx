@@ -272,8 +272,8 @@ const App: React.FC<AppProps> = ({
   // Cached avatar from localStorage to eliminate avatar flicker
   const [cachedAvatar, setCachedAvatar] = useState<string>(() => {
     try {
-      if (typeof window !== "undefined") {
-        return localStorage.getItem("aptus_saved_avatar") || "chat";
+      if (typeof window !== "undefined" && activeToken) {
+        return localStorage.getItem(`aptus_avatar_${activeToken}`) || localStorage.getItem("aptus_saved_avatar") || "chat";
       }
     } catch (e) {}
     return "chat";
@@ -334,6 +334,7 @@ const App: React.FC<AppProps> = ({
           if (details.chatbotAvatar) {
             setCachedAvatar(details.chatbotAvatar);
             try {
+              localStorage.setItem(`aptus_avatar_${activeToken}`, details.chatbotAvatar);
               localStorage.setItem("aptus_saved_avatar", details.chatbotAvatar);
             } catch (e) {}
           }
@@ -363,7 +364,7 @@ const App: React.FC<AppProps> = ({
   }, [activeToken]);
 
   // Config is ready if developer passed explicit props OR if details are available (from cache or server)
-  const isConfigReady = Boolean(propTheme || propPrimaryColor || chatbotDetails || errorMessage);
+  const isConfigReady = Boolean(propTheme || propPrimaryColor || chatbotDetails);
 
   return (
     <AppContainer $fontFamily={themeConfig.fontFamily}>

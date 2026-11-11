@@ -38,6 +38,10 @@ export interface ThemeConfig {
   suggestionBg: string;
   suggestionColor: string;
   suggestionBorder?: string;
+  userBubbleShadow?: string;
+  botBubbleShadow?: string;
+  inputAreaBg?: string;
+  inputAreaBorderTop?: string;
 }
 
 export const themes: Record<string, ThemeConfig> = {

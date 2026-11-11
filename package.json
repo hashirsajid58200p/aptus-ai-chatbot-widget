@@ -1,6 +1,6 @@
 {
   "name": "aptus-ai-chatbot-widget",
-  "version": "1.0.14",
+  "version": "1.0.17",
   "description": "A customizable, themeable, secure React AI Chatbot widget component for business websites.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -57,7 +57,6 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.6",
     "styled-components": "^6.1.13",
-    "ts-loader": "^9.5.1",
     "tsup": "^8.5.1",
     "typescript": "^5.6.2"
   },

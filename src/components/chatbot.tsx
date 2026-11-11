@@ -10,12 +10,11 @@ import {
   RiRobotLine,
   RiCustomerService2Line,
   RiShieldCheckLine,
-  RiSecurePaymentLine,
   RiSparklingFill,
   RiQuestionAnswerLine,
   RiRefreshLine,
 } from "react-icons/ri";
-import { FaStar, FaBolt, FaLock, FaBrain, FaRobot } from "react-icons/fa";
+import { FaRobot } from "react-icons/fa";
 import { AiOutlineClose } from "react-icons/ai";
 import generateSugesstions from "../utils/generateSuggestions";
 import { getThemeConfig, ThemeConfig } from "../theme";
@@ -962,21 +961,28 @@ const Chatbot: React.FC<ChatbotProps> = ({
           { sessionId: session.sessionId },
           { headers: { "x-chatbot-token": token } }
         );
+        setIsHumanActive(true);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "bot",
+            message: "Live agent requested! A support representative has been notified and will join shortly. Please type your inquiry.",
+            sender: "human_agent",
+          },
+        ]);
+        scrollToBottom();
       } catch (e) {
-        // Silently continue
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "bot",
+            message: "Could not notify live agent right now. Please leave your message and contact details below.",
+            sender: "human_agent",
+          },
+        ]);
+        scrollToBottom();
       }
     }
-
-    setIsHumanActive(true);
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "bot",
-        message: "Live agent requested! A support representative has been notified and will join shortly. Please type your inquiry.",
-        sender: "human_agent",
-      },
-    ]);
-    scrollToBottom();
   };
 
   // Poll for live support agent replies in the active session
@@ -1022,7 +1028,14 @@ const Chatbot: React.FC<ChatbotProps> = ({
   useEffect(() => {
     const getSuggestionsList = async () => {
       if (wantToShowSuggestions && showSuggestions) {
-        const suggestionsList = await generateSugesstions(chatbotDetails?.bussinessDetails || [], apiUrl, token);
+        const suggestionsList = await generateSugesstions(
+          [
+            chatbotDetails?.bussinessDescription || "",
+            ...(chatbotDetails?.bussinessDetails || []).map((d) => `${d.question} ${d.answer}`),
+          ].join("\n"),
+          apiUrl,
+          token
+        );
         setSuggestions(suggestionsList || []);
       }
     };
@@ -1228,65 +1241,80 @@ const Chatbot: React.FC<ChatbotProps> = ({
       ) : (
         <>
           {/* Messages Feed */}
-          <MessagesContainer ref={messagesContainerRef} $config={themeConfig}>
-            {messages.map((message, index) =>
-              message.role === "bot" || message.role === "chatbot" || message.sender === "ai" || message.sender === "human_agent" ? (
-                <BotMessageWrapper key={index} $config={themeConfig}>
-                  <AvatarCircle $bg="rgba(0, 0, 0, 0.08)" $color={themeConfig.botBubbleColor || "#1a1a1a"}>
-                    {message.isError ? (
-                      <TbMessageCircleOff size={16} />
-                    ) : message.sender === "human_agent" ? (
-                      <RiCustomerService2Line size={16} />
-                    ) : (
-                      renderAvatar(16, themeConfig.botBubbleColor || "#1a1a1a")
-                    )}
-                  </AvatarCircle>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxWidth: "100%" }}>
-                    {message.sender === "human_agent" && (
-                      <SenderBadge>Live Support Agent</SenderBadge>
-                    )}
+          {(() => {
+            const isDarkContainer =
+              themeConfig.containerBg &&
+              (themeConfig.containerBg.startsWith("#1") ||
+                themeConfig.containerBg.startsWith("#2") ||
+                themeConfig.containerBg.startsWith("#0") ||
+                themeConfig.containerBg.toLowerCase().includes("black") ||
+                themeConfig.containerBg.startsWith("#3"));
+            const botAvatarBg = isDarkContainer
+              ? "rgba(255, 255, 255, 0.15)"
+              : "rgba(0, 0, 0, 0.08)";
+
+            return (
+              <MessagesContainer ref={messagesContainerRef} $config={themeConfig}>
+                {messages.map((message, index) =>
+                  message.role === "bot" || message.role === "chatbot" || message.sender === "ai" || message.sender === "human_agent" ? (
+                    <BotMessageWrapper key={index} $config={themeConfig}>
+                      <AvatarCircle $bg={botAvatarBg} $color={themeConfig.botBubbleColor || "#1a1a1a"}>
+                        {message.isError ? (
+                          <TbMessageCircleOff size={16} />
+                        ) : message.sender === "human_agent" ? (
+                          <RiCustomerService2Line size={16} />
+                        ) : (
+                          renderAvatar(16, themeConfig.botBubbleColor || "#1a1a1a")
+                        )}
+                      </AvatarCircle>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px", maxWidth: "100%" }}>
+                        {message.sender === "human_agent" && (
+                          <SenderBadge>Live Support Agent</SenderBadge>
+                        )}
+                        <MessageBubble $config={themeConfig} role="bot">
+                          <FormattedMessage content={message.message} color={themeConfig.botBubbleColor} />
+                        </MessageBubble>
+                      </div>
+                    </BotMessageWrapper>
+                  ) : (
+                    <UserMessageWrapper key={index} $config={themeConfig}>
+                      <MessageBubble $config={themeConfig} role="user">
+                        <FormattedMessage content={message.message} color={themeConfig.userBubbleColor} />
+                      </MessageBubble>
+                      <AvatarCircle
+                        $bg={themeConfig.userBubbleBg || "#007bff"}
+                        $color={themeConfig.userBubbleColor || "#ffffff"}
+                      >
+                        <TbUser size={16} />
+                      </AvatarCircle>
+                    </UserMessageWrapper>
+                  )
+                )}
+
+                {showSuggestions && (
+                  <SuggestionsContainer>
+                    {suggestions.map((sugg, i) => (
+                      <Suggestion key={i} $config={themeConfig} onClick={() => handleSuggestionClick(sugg)}>
+                        {sugg}
+                      </Suggestion>
+                    ))}
+                  </SuggestionsContainer>
+                )}
+
+                {loading && (
+                  <BotMessageWrapper $config={themeConfig}>
+                    <AvatarCircle $bg={botAvatarBg} $color={themeConfig.botBubbleColor || "#1a1a1a"}>
+                      {renderAvatar(16, themeConfig.botBubbleColor || "#1a1a1a")}
+                    </AvatarCircle>
                     <MessageBubble $config={themeConfig} role="bot">
-                      <FormattedMessage content={message.message} color={themeConfig.botBubbleColor} />
+                      Typing...
                     </MessageBubble>
-                  </div>
-                </BotMessageWrapper>
-              ) : (
-                <UserMessageWrapper key={index} $config={themeConfig}>
-                  <MessageBubble $config={themeConfig} role="user">
-                    <FormattedMessage content={message.message} color={themeConfig.userBubbleColor} />
-                  </MessageBubble>
-                  <AvatarCircle
-                    $bg={themeConfig.userBubbleBg || "#007bff"}
-                    $color={themeConfig.userBubbleColor || "#ffffff"}
-                  >
-                    <TbUser size={16} />
-                  </AvatarCircle>
-                </UserMessageWrapper>
-              )
-            )}
-
-            {showSuggestions && (
-              <SuggestionsContainer>
-                {suggestions.map((sugg, i) => (
-                  <Suggestion key={i} $config={themeConfig} onClick={() => handleSuggestionClick(sugg)}>
-                    {sugg}
-                  </Suggestion>
-                ))}
-              </SuggestionsContainer>
-            )}
-
-            {loading && (
-              <BotMessageWrapper $config={themeConfig}>
-                <AvatarCircle $bg="rgba(0, 0, 0, 0.08)" $color={themeConfig.botBubbleColor || "#1a1a1a"}>
-                  {renderAvatar(16, themeConfig.botBubbleColor || "#1a1a1a")}
-                </AvatarCircle>
-                <MessageBubble $config={themeConfig} role="bot">
-                  Typing...
-                </MessageBubble>
-              </BotMessageWrapper>
-            )}
-            <div ref={messagesEndRef} />
-          </MessagesContainer>
+                  </BotMessageWrapper>
+                )}
+                <div ref={messagesEndRef} />
+              </MessagesContainer>
+            );
+          })()}
 
           {/* Input Bar with Input, Voice Mic on Right, and Send */}
           <ChatInputContainer $config={themeConfig}>
@@ -1469,6 +1497,8 @@ const AvatarCircle = styled.div<{ $bg?: string; $color?: string }>`
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 `;
 
 const MessageBubble = styled.div<{ $config: ThemeConfig; role: "user" | "bot" }>`
