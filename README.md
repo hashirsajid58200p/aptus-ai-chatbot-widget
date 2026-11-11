@@ -7,7 +7,7 @@ React chatbot widget for Aptus AI. Drop it on a site with a business `token` and
 
 **npm:** https://www.npmjs.com/package/aptus-ai-chatbot-widget  
 **Platform repo:** https://github.com/hashirsajid58200p/aptus-ai-full-stack  
-**Live platform:** https://aptus-ai-full-stack.vercel.app
+**Live platform:** https://aptus-ai.vercel.app
 
 Current version: **1.0.17**
 
