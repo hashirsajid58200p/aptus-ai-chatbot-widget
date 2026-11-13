@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, ReactNode } from "react";
+import React, { useState, useEffect, useRef, useCallback, ReactNode } from "react";
 import generateSession from "../utils/generateSession";
 import axios from "axios";
 import styled from "styled-components";
@@ -18,7 +18,19 @@ import { FaRobot } from "react-icons/fa";
 import { AiOutlineClose } from "react-icons/ai";
 import generateSugesstions from "../utils/generateSuggestions";
 import { getThemeConfig, ThemeConfig } from "../theme";
-import { getContrastColor } from "../App";
+import { getContrastColor } from "../utils/themeUtils";
+
+interface ISpeechRecognition {
+  stop: () => void;
+  abort?: () => void;
+  start: () => void;
+  continuous?: boolean;
+  interimResults?: boolean;
+  lang?: string;
+  onresult?: ((event: { results: Array<Array<{ transcript: string }> & { isFinal?: boolean }> }) => void) | null;
+  onerror?: ((e: { error?: string }) => void) | null;
+  onend?: (() => void) | null;
+}
 
 interface Message {
   role: "user" | "bot" | "chatbot";
@@ -151,7 +163,10 @@ const FormattedMessage: React.FC<{ content: string; color?: string }> = ({ conte
   let tableHeader: string[] = [];
   let tableRows: string[][] = [];
 
-  let currentList: { type: "ul" | "ol" | "task"; items: any[] } | null = null;
+  let currentList:
+    | { type: "ul" | "ol"; items: React.ReactNode[] }
+    | { type: "task"; items: { checked: boolean; text: React.ReactNode }[] }
+    | null = null;
 
   const flushList = () => {
     if (currentList) {
@@ -340,7 +355,7 @@ const FormattedMessage: React.FC<{ content: string; color?: string }> = ({ conte
     }
 
     // Horizontal Rule: ---, ***, ___
-    if (/^(\-{3,}|\*{3,}|_{3,})$/.test(line)) {
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(line)) {
       flushList();
       nodes.push(
         <hr
@@ -378,7 +393,7 @@ const FormattedMessage: React.FC<{ content: string; color?: string }> = ({ conte
     }
 
     // Task List: - [ ] or - [x]
-    const taskMatch = line.match(/^([\*\-\+•])\s+\[([ xX])\]\s+(.*)$/);
+    const taskMatch = line.match(/^([*\-+•])\s+\[([ xX])\]\s+(.*)$/);
     if (taskMatch) {
       if (!currentList || currentList.type !== "task") {
         flushList();
@@ -392,7 +407,7 @@ const FormattedMessage: React.FC<{ content: string; color?: string }> = ({ conte
     }
 
     // Bullet List
-    const ulMatch = line.match(/^([\*\-\+•])\s+(.*)$/);
+    const ulMatch = line.match(/^([*\-+•])\s+(.*)$/);
     if (ulMatch) {
       if (!currentList || currentList.type !== "ul") {
         flushList();
@@ -403,7 +418,7 @@ const FormattedMessage: React.FC<{ content: string; color?: string }> = ({ conte
     }
 
     // Numbered List
-    const olMatch = line.match(/^(\d+)[\.\)]\s+(.*)$/);
+    const olMatch = line.match(/^(\d+)[.)]\s+(.*)$/);
     if (olMatch) {
       if (!currentList || currentList.type !== "ol") {
         flushList();
@@ -505,7 +520,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<ISpeechRecognition | null>(null);
   const hasLiveTranscribedRef = useRef(false);
 
   // Cleanly terminate all active microphone recording & hardware streams
@@ -513,7 +528,9 @@ const Chatbot: React.FC<ChatbotProps> = ({
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
-      } catch (e) {}
+      } catch (_e) {
+        /* ignore audio stop error */
+      }
       recognitionRef.current = null;
     }
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
@@ -522,14 +539,18 @@ const Chatbot: React.FC<ChatbotProps> = ({
           mediaRecorderRef.current.requestData();
         }
         mediaRecorderRef.current.stop();
-      } catch (e) {}
+      } catch (_e) {
+        /* ignore recorder stop error */
+      }
     } else if (mediaStreamRef.current) {
       try {
         mediaStreamRef.current.getTracks().forEach((track) => {
           track.stop();
           track.enabled = false;
         });
-      } catch (e) {}
+      } catch (_e) {
+        /* ignore track stop error */
+      }
       mediaStreamRef.current = null;
     }
     setIsRecording(false);
@@ -583,12 +604,12 @@ const Chatbot: React.FC<ChatbotProps> = ({
         localStorage.setItem("aptus_visitor_id", vid);
       }
       return vid;
-    } catch (e) {
+    } catch (_e) {
       return "v_" + Date.now();
     }
   };
 
-  const createVisitorSession = async (name: string, email: string) => {
+  const createVisitorSession = useCallback(async (name: string, email: string) => {
     if (!token || !apiUrl) return null;
     try {
       const visitorId = getVisitorId();
@@ -616,15 +637,17 @@ const Chatbot: React.FC<ChatbotProps> = ({
       console.warn("Session init notice:", err);
     }
     return null;
-  };
+  }, [token, apiUrl]);
 
   // Check saved visitor profile in localStorage on mount (asks only once)
   useEffect(() => {
-    let savedProfile: any = null;
+    let savedProfile: { name?: string; email?: string } | null = null;
     try {
       const stored = localStorage.getItem("aptus_visitor_profile");
       if (stored) savedProfile = JSON.parse(stored);
-    } catch (e) {}
+    } catch (_e) {
+      /* ignore storage read error */
+    }
 
     if (savedProfile && savedProfile.name && savedProfile.name.trim()) {
       setVisitorNameInput(savedProfile.name.trim());
@@ -634,7 +657,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
     } else {
       setNeedsName(true);
     }
-  }, [token, apiUrl]);
+  }, [token, apiUrl, createVisitorSession]);
 
   const handleSaveVisitorName = async () => {
     const cleanName = visitorNameInput.trim();
@@ -645,7 +668,9 @@ const Chatbot: React.FC<ChatbotProps> = ({
     const profile = { name: cleanName, email: cleanEmail };
     try {
       localStorage.setItem("aptus_visitor_profile", JSON.stringify(profile));
-    } catch (e) {}
+    } catch (_e) {
+      /* ignore storage write error */
+    }
     setNeedsName(false);
 
     setMessages((prev) => [
@@ -670,7 +695,8 @@ const Chatbot: React.FC<ChatbotProps> = ({
       // 1. Start Real-time live SpeechRecognition if supported by browser
       const SpeechRecClass =
         typeof window !== "undefined" &&
-        ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+        ((window as unknown as { SpeechRecognition?: new () => ISpeechRecognition; webkitSpeechRecognition?: new () => ISpeechRecognition }).SpeechRecognition ||
+         (window as unknown as { webkitSpeechRecognition?: new () => ISpeechRecognition }).webkitSpeechRecognition);
 
       if (SpeechRecClass) {
         try {
@@ -684,7 +710,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
 
           const initialInput = input.trim();
 
-          recognition.onresult = (event: any) => {
+          recognition.onresult = (event: { results: Array<Array<{ transcript: string }> & { isFinal?: boolean }> }) => {
             let interimTranscript = "";
             let finalTranscript = "";
             for (let i = 0; i < event.results.length; i++) {
@@ -702,7 +728,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
             }
           };
 
-          recognition.onerror = (e: any) => {
+          recognition.onerror = (e: { error?: string }) => {
             console.warn("Live speech recognition notice:", e?.error);
             setIsRecording(false);
           };
@@ -760,7 +786,9 @@ const Chatbot: React.FC<ChatbotProps> = ({
                 track.stop();
                 track.enabled = false;
               });
-            } catch (e) {}
+            } catch (_e) {
+              /* ignore track stop error */
+            }
             mediaStreamRef.current = null;
           }
 
@@ -801,14 +829,15 @@ const Chatbot: React.FC<ChatbotProps> = ({
                     setInput(transcribedText);
                   }
                 }
-              } catch (err: any) {
-                console.warn("Groq Whisper transcription notice:", err?.response?.data?.message || err.message);
+              } catch (err: unknown) {
+                const axiosErr = err as { response?: { data?: { message?: string } }; message?: string };
+                console.warn("Groq Whisper transcription notice:", axiosErr?.response?.data?.message || axiosErr?.message || "Transcription failed");
               } finally {
                 setIsTranscribing(false);
                 setIsRecording(false);
               }
             };
-          } catch (err: any) {
+          } catch (err: unknown) {
             console.error("Audio processing notice:", err);
             setIsTranscribing(false);
             setIsRecording(false);
@@ -868,7 +897,9 @@ const Chatbot: React.FC<ChatbotProps> = ({
               if (p?.name) savedName = p.name;
               if (p?.email) savedEmail = p.email;
             }
-          } catch (e) {}
+          } catch (_e) {
+            /* ignore storage read error */
+          }
 
           const sessRes = await generateSession({
             email: savedEmail,
@@ -924,11 +955,12 @@ const Chatbot: React.FC<ChatbotProps> = ({
         ) {
           setShowSuggestions(true);
         }
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const axiosErr = error as { response?: { data?: { message?: string } }; message?: string };
         console.error("Error fetching response:", error);
         setMessages((prevMessages) => [
           ...prevMessages,
-          { role: "bot", message: error?.response?.data?.message || "Sorry, something went wrong. Please try again.", isError: true, sender: "ai" },
+          { role: "bot", message: axiosErr?.response?.data?.message || "Sorry, something went wrong. Please try again.", isError: true, sender: "ai" },
         ]);
       } finally {
         setLoading(false);
@@ -971,7 +1003,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
           },
         ]);
         scrollToBottom();
-      } catch (e) {
+      } catch (_e) {
         setMessages((prev) => [
           ...prev,
           {
@@ -1000,13 +1032,13 @@ const Chatbot: React.FC<ChatbotProps> = ({
           const serverMsgs = res.data.messages;
           setMessages((prevMsgs) => {
             const newHumanMsgs = serverMsgs.filter(
-              (sm: any) =>
+              (sm: { sender?: string; message?: string }) =>
                 sm.sender === "human_agent" &&
                 !prevMsgs.some((pm) => pm.message === sm.message && pm.sender === "human_agent")
             );
 
             if (newHumanMsgs.length > 0) {
-              const formattedNew = newHumanMsgs.map((m: any) => ({
+              const formattedNew = newHumanMsgs.map((m: { message: string }) => ({
                 role: "bot" as const,
                 message: m.message,
                 sender: "human_agent" as const,
@@ -1017,7 +1049,7 @@ const Chatbot: React.FC<ChatbotProps> = ({
             return prevMsgs;
           });
         }
-      } catch (err) {
+      } catch (_err) {
         // Silent error
       }
     }, 4000);

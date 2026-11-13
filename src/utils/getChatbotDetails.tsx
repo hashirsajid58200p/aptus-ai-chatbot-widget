@@ -13,10 +13,11 @@ const getChatbotDetails = async (token: string, apiUrl: string) => {
 
     return response.data.data;
 
-  } catch (error: any) {
-    const errorMsg = error?.response?.data?.message || error?.message || "Something went wrong while fetching chatbot details";
-    const customErr: any = new Error(errorMsg);
-    customErr.response = error?.response;
+  } catch (error: unknown) {
+    const axiosErr = error as { response?: { data?: { message?: string } }; message?: string };
+    const errorMsg = axiosErr?.response?.data?.message || axiosErr?.message || "Something went wrong while fetching chatbot details";
+    const customErr = new Error(errorMsg) as Error & { response?: unknown };
+    customErr.response = axiosErr?.response;
     throw customErr;
   }
 };
