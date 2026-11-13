@@ -9,7 +9,7 @@ React chatbot widget for Aptus AI. Drop it on a site with a business `token` and
 **Platform repo:** https://github.com/hashirsajid58200p/aptus-ai-full-stack  
 **Live platform:** https://aptus-ai.vercel.app
 
-Current version: **1.0.17**
+Current version: **1.0.18**
 
 ---
 
