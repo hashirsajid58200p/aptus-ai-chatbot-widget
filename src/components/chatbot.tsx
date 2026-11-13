@@ -1021,12 +1021,30 @@ const Chatbot: React.FC<ChatbotProps> = ({
   useEffect(() => {
     if (!session?.sessionId || !apiUrl || !token) return;
 
+    let consecutiveErrors = 0;
+
+    const handleOnline = () => {
+      consecutiveErrors = 0;
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("online", handleOnline);
+    }
+
     const pollInterval = setInterval(async () => {
+      if (typeof navigator !== "undefined" && !navigator.onLine) return;
+      if (consecutiveErrors >= 3) {
+        consecutiveErrors++;
+        if (consecutiveErrors < 10) return;
+        consecutiveErrors = 0;
+      }
+
       try {
         const res = await axios.get(`${apiUrl}/session/messages`, {
           params: { sessionId: session.sessionId },
           headers: { "x-chatbot-token": token },
         });
+
+        consecutiveErrors = 0;
 
         if (res.data?.success && Array.isArray(res.data.messages)) {
           const serverMsgs = res.data.messages;
@@ -1050,11 +1068,16 @@ const Chatbot: React.FC<ChatbotProps> = ({
           });
         }
       } catch (_err) {
-        // Silent error
+        consecutiveErrors++;
       }
     }, 4000);
 
-    return () => clearInterval(pollInterval);
+    return () => {
+      clearInterval(pollInterval);
+      if (typeof window !== "undefined") {
+        window.removeEventListener("online", handleOnline);
+      }
+    };
   }, [session?.sessionId, apiUrl, token]);
 
   useEffect(() => {
